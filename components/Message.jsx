@@ -36,10 +36,10 @@ const Message = () => {
 
     emailjs
       .send(
-        "service_3jgwceq",
-        "template_6yfge5b",
+        process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID, // Vercel supports client-side env vars with NEXT_PUBLIC prefix
+        process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID,
         { ...formData, "g-recaptcha-response": captchaToken },
-        "fYJJ5s6fjBIE8DJEf"
+        process.env.NEXT_PUBLIC_EMAILJS_USER_ID
       )
       .then(
         () => {
@@ -123,7 +123,7 @@ const Message = () => {
                   aria-label="Your Message"
                 ></textarea>
                 <ReCAPTCHA
-                  sitekey="6Ld2KHwqAAAAAPLUsAVItILM38nArdimIzSRYEpb"
+                  sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY}
                   onChange={handleCaptchaChange}
                 />
                 <button
