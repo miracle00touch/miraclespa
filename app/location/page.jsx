@@ -27,7 +27,7 @@ const Location = () => {
             width={600}
             height={400}
             className="object-cover h-full w-full"
-            priority // for SEO
+            priority
           />
         </div>
 
