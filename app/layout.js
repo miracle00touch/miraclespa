@@ -27,7 +27,7 @@ export default function RootLayout({ children }) {
         {/* Google Site Verification Meta Tag */}
         <meta
           name="google-site-verification"
-          content="ka2UD9ZHpo9uoxKyW3eLDmMoZTLrQm7AKxQLW-7QYyM"
+          content="DKT9nc5-rlF_hN3OgTZlVUXbUUVgMB3FzfpTgvyz72o"
         />
       </head>
       <body
