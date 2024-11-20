@@ -6,33 +6,35 @@ const Gallery = () => {
   const massagers = [
     {
       id: 1,
-      name: "Jane Doe",
-      image: "https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg",
+      name: "Maria Santos",
+      image:
+        "https://images.pexels.com/photos/6788392/pexels-photo-6788392.jpeg",
       description:
-        "Jane specializes in Swedish and deep tissue massage, providing ultimate relaxation.",
+        "Maria specializes in Swedish and deep tissue massage, providing ultimate relaxation.",
     },
     {
       id: 2,
-      name: "John Smith",
-      image: "https://images.pexels.com/photos/769732/pexels-photo-769732.jpeg",
+      name: "Ana Rivera",
+      image:
+        "https://images.pexels.com/photos/5893392/pexels-photo-5893392.jpeg",
       description:
-        "John is an expert in sports massage, helping clients recover and maintain peak performance.",
+        "Ana is an expert in sports massage, helping clients recover and maintain peak performance.",
     },
     {
       id: 3,
-      name: "Mary Johnson",
+      name: "Liza Cruz",
       image:
-        "https://images.pexels.com/photos/3757942/pexels-photo-3757942.jpeg",
+        "https://images.pexels.com/photos/5984487/pexels-photo-5984487.jpeg",
       description:
-        "Mary's expertise includes Thai massage, promoting flexibility and stress relief.",
+        "Liza's expertise includes Thai massage, promoting flexibility and stress relief.",
     },
     {
       id: 4,
-      name: "David Lee",
+      name: "Jasmine Reyes",
       image:
-        "https://images.pexels.com/photos/6628644/pexels-photo-6628644.jpeg",
+        "https://images.pexels.com/photos/6173603/pexels-photo-6173603.jpeg",
       description:
-        "David offers reflexology treatments, focusing on pressure points for holistic healing.",
+        "Jasmine offers reflexology treatments, focusing on pressure points for holistic healing.",
     },
   ];
 
