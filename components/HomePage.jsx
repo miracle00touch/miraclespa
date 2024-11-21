@@ -22,8 +22,9 @@ export default function HomePage() {
           Miracle Touch Spa
         </h1>
         <p className="text-lg md:text-xl font-playfair mb-8 max-w-lg mx-auto text-brown-600 leading-relaxed">
-          Rejuvenate your senses with the soothing touch of sensual massage in
-          our serene and tranquil spa retreat.
+          Relax and rejuvenate with Miracle Touch Spa. Enjoy soothing massages
+          in the serene comfort of your home or our tranquil retreat, available
+          24/7 in Metro Manila.
         </p>
 
         {/* Large Contact Number */}
@@ -41,7 +42,7 @@ export default function HomePage() {
             </button>
           </Link>
           {/* Tooltip */}
-          <div className="absolute left-full shadown-md top-1/2 transform -translate-y-1/2 ml-4 px-6 py-4 bg-brown-700 text-white text-lg rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 before:content-[''] before:absolute before:left-0 before:top-1/2 before:transform before:-translate-y-1/2 before:-translate-x-full before:border-8 before:border-transparent before:border-r-brown-700 border border-white">
+          <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-4 px-6 py-4 bg-brown-700 text-white text-lg rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 before:content-[''] before:absolute before:left-0 before:top-1/2 before:transform before:-translate-y-1/2 before:-translate-x-full before:border-8 before:border-transparent before:border-r-brown-700 border border-white">
             Open 24/7
           </div>
         </div>
@@ -69,6 +70,34 @@ export default function HomePage() {
           </span>
         </div>
       </div>
+
+      {/* Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "LocalBusiness",
+            name: "Miracle Touch Spa",
+            description:
+              "Relax and rejuvenate with Miracle Touch Spa, offering massage services 24/7 in Metro Manila. Book now for home or retreat sessions.",
+            image:
+              "https://miracletouchspa.vercel.app/images/pexels-spa-home.jpg",
+            telephone: "+63 927 473 6260",
+            address: {
+              "@type": "PostalAddress",
+              addressLocality: "Metro Manila",
+              addressCountry: "Philippines",
+            },
+            url: "https://miracletouchspa.vercel.app",
+            sameAs: [
+              "https://www.facebook.com/miracletouchspa",
+              "mailto:miracletouchspa2@gmail.com",
+            ],
+            openingHours: "Mo-Su 00:00-23:59",
+          }),
+        }}
+      />
     </div>
   );
 }

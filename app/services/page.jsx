@@ -6,41 +6,41 @@ const Services = () => {
     {
       title: "Swedish Massage",
       description:
-        "Indulge in a relaxing Swedish Massage at Miracle Touch Spa. Our expert therapists use long, flowing strokes, gentle kneading, and circular movements to soothe your muscles, improve circulation, and enhance flexibility. Perfect for reducing stress and promoting your body's natural healing for total relaxation.",
+        "Indulge in a relaxing Swedish Massage at Miracle Touch Spa. Our expert therapists in Metro Manila use long, flowing strokes, gentle kneading, and circular movements to soothe your muscles, improve circulation, and enhance flexibility. Perfect for reducing stress and promoting your body's natural healing.",
       image:
         "https://images.pexels.com/photos/6560304/pexels-photo-6560304.jpeg",
     },
     {
       title: "Body Scrub",
       description:
-        "Rejuvenate your skin with a luxurious Body Scrub at Miracle Touch Spa. This exfoliating treatment removes dead skin cells, leaving your skin soft, smooth, and glowing. Our body scrub also boosts circulation and revitalizes your skin for a refreshed, youthful appearance.",
+        "Rejuvenate your skin with a luxurious Body Scrub at Miracle Touch Spa. This exfoliating treatment in Metro Manila removes dead skin cells, leaving your skin soft, smooth, and glowing. Boost circulation and revitalize your skin for a refreshed, youthful appearance.",
       image:
         "https://images.pexels.com/photos/5241025/pexels-photo-5241025.jpeg",
     },
     {
       title: "Ear Candling",
       description:
-        "Experience the calming benefits of Ear Candling at Miracle Touch Spa. This soothing therapy is designed to gently remove impurities, improve ear health, and promote relaxation. Perfect for those seeking relief from sinus pressure and a serene, balanced experience.",
+        "Experience the calming benefits of Ear Candling at Miracle Touch Spa. This soothing therapy gently removes impurities, improves ear health, and promotes relaxation. Perfect for relieving sinus pressure and achieving a serene, balanced experience.",
       image: "/images/ear-candling.jpg",
     },
     {
       title: "Hot Stone Therapy",
       description:
-        "Melt away tension with Hot Stone Therapy at Miracle Touch Spa. Warm, smooth stones are placed on key points of your body to relax muscles and improve circulation. This deeply soothing treatment enhances relaxation and relieves stress, leaving you feeling rejuvenated.",
+        "Melt away tension with Hot Stone Therapy at Miracle Touch Spa in Metro Manila. Warm, smooth stones are placed on key points of your body to relax muscles and improve circulation. This deeply soothing treatment enhances relaxation and relieves stress.",
       image:
         "https://images.pexels.com/photos/5240639/pexels-photo-5240639.jpeg",
     },
     {
       title: "Full Body Massage",
       description:
-        "Relax and rejuvenate with a Full Body Massage at Miracle Touch Spa. Our skilled therapists use a combination of techniques to ease muscle tension, improve circulation, and enhance overall well-being. Treat yourself to the ultimate relaxation experience for your mind and body.",
+        "Relax and rejuvenate with a Full Body Massage at Miracle Touch Spa. Our skilled therapists in Metro Manila combine techniques to ease muscle tension, improve circulation, and enhance overall well-being. Treat yourself to ultimate relaxation.",
       image:
         "https://images.pexels.com/photos/6629538/pexels-photo-6629538.jpeg",
     },
     {
       title: "Shiatsu Massage",
       description:
-        "Revitalize your body with a Shiatsu Massage at Miracle Touch Spa. This traditional Japanese therapy uses precise finger pressure on energy meridians to balance your body's energy, relieve tension, and improve circulation. Perfect for restoring harmony and well-being.",
+        "Revitalize your body with a Shiatsu Massage at Miracle Touch Spa in Metro Manila. This traditional Japanese therapy uses precise finger pressure on energy meridians to balance your body's energy, relieve tension, and improve circulation.",
       image:
         "https://images.pexels.com/photos/6628700/pexels-photo-6628700.jpeg",
     },
@@ -61,7 +61,7 @@ const Services = () => {
             <div className="relative w-full h-56 md:h-64">
               <Image
                 src={service.image}
-                alt={`Image of ${service.title}`}
+                alt={`${service.title} at Miracle Touch Spa in Metro Manila`}
                 fill
                 className="object-cover w-full h-full"
               />
@@ -77,6 +77,36 @@ const Services = () => {
           </article>
         ))}
       </div>
+
+      {/* Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Service",
+            provider: {
+              "@type": "LocalBusiness",
+              name: "Miracle Touch Spa",
+              address: {
+                "@type": "PostalAddress",
+                addressLocality: "Metro Manila",
+                addressCountry: "Philippines",
+              },
+              telephone: "+63 927 473 6260",
+            },
+            hasOfferCatalog: {
+              "@type": "OfferCatalog",
+              name: "Massage and Spa Services",
+              itemListElement: services.map((service) => ({
+                "@type": "Offer",
+                name: service.title,
+                description: service.description,
+              })),
+            },
+          }),
+        }}
+      />
     </section>
   );
 };

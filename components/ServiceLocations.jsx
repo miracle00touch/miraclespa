@@ -1,5 +1,5 @@
 import React from "react";
-import { FaMapMarkerAlt, FaHotel, FaHome } from "react-icons/fa";
+import { FaMapMarkerAlt, FaHome } from "react-icons/fa";
 
 const ServiceLocations = () => {
   return (
@@ -68,6 +68,38 @@ const ServiceLocations = () => {
           </p>
         </div>
       </div>
+
+      {/* Structured Data for SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Service",
+            name: "Miracle Touch Spa - Massage Services",
+            description:
+              "Professional massage services across Metro Manila including Quezon City, Makati, Manila, Taguig, and Pasay.",
+            areaServed: [
+              { "@type": "Place", name: "Quezon City" },
+              { "@type": "Place", name: "Makati City" },
+              { "@type": "Place", name: "Manila City" },
+              { "@type": "Place", name: "Taguig City" },
+              { "@type": "Place", name: "Pasay City" },
+            ],
+            provider: {
+              "@type": "LocalBusiness",
+              name: "Miracle Touch Spa",
+              telephone: "+63 927 473 6260",
+              url: "https://miracletouchspa.vercel.app",
+              address: {
+                "@type": "PostalAddress",
+                addressLocality: "Metro Manila",
+                addressCountry: "Philippines",
+              },
+            },
+          }),
+        }}
+      />
     </section>
   );
 };

@@ -1,3 +1,4 @@
+// app/layout.js
 import localFont from "next/font/local";
 import "./globals.css";
 import NavBar from "@/components/NavBar";
@@ -29,6 +30,11 @@ export default function RootLayout({ children }) {
           name="google-site-verification"
           content="DKT9nc5-rlF_hN3OgTZlVUXbUUVgMB3FzfpTgvyz72o"
         />
+        {/* Favicon */}
+        <link rel="icon" href="/favicon.ico" />
+        {/* Metadata for SEO */}
+        <title>{metadata.title}</title>
+        <meta name="description" content={metadata.description} />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}

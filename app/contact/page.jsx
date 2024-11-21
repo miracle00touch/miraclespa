@@ -38,7 +38,7 @@ const Contact = () => {
             </a>
             <Image
               src="/images/call.png"
-              alt="QR Code to call Miracle Touch Spa"
+              alt="QR Code for calling Miracle Touch Spa"
               width={96}
               height={96}
               className="mt-4 w-24 h-24"
@@ -56,7 +56,7 @@ const Contact = () => {
             </a>
             <Image
               src="/images/Viber-mts.png"
-              alt="QR Code to message on Viber"
+              alt="QR Code to message Miracle Touch Spa on Viber"
               width={96}
               height={96}
               className="mt-4 w-24 h-24"
@@ -74,7 +74,7 @@ const Contact = () => {
             </a>
             <Image
               src="/images/Whatsapp-mts.jpg"
-              alt="QR Code to message on WhatsApp"
+              alt="QR Code to message Miracle Touch Spa on WhatsApp"
               width={96}
               height={96}
               className="mt-4 w-24 h-24"
@@ -92,7 +92,7 @@ const Contact = () => {
             </a>
             <Image
               src="/images/Line-mts.jpg"
-              alt="QR Code to message on Line"
+              alt="QR Code to message Miracle Touch Spa on Line"
               width={96}
               height={96}
               className="mt-4 w-24 h-24"
@@ -110,7 +110,7 @@ const Contact = () => {
             </a>
             <Image
               src="/images/TG-mts.jpg"
-              alt="QR Code to message on Telegram"
+              alt="QR Code to message Miracle Touch Spa on Telegram"
               width={96}
               height={96}
               className="mt-4 w-24 h-24"
@@ -128,7 +128,7 @@ const Contact = () => {
             </a>
             <Image
               src="/images/WeChat-mts.jpg"
-              alt="QR Code to message on WeChat"
+              alt="QR Code to message Miracle Touch Spa on WeChat"
               width={96}
               height={96}
               className="mt-4 w-24 h-24"
@@ -158,6 +158,27 @@ const Contact = () => {
               miracletouchspa2@gmail.com
             </a>
           </div>
+
+          {/* Structured Data for SEO */}
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "ContactPage",
+                name: "Contact Miracle Touch Spa",
+                description:
+                  "Get in touch with Miracle Touch Spa to book your massage in Metro Manila. Contact us via Viber, WhatsApp, Line, Telegram, or WeChat.",
+                url: "https://miracletouchspa.vercel.app/contact",
+                telephone: "+639274736260",
+                contactType: "Customer Support",
+                sameAs: [
+                  "https://www.facebook.com/miracletouchspa",
+                  "mailto:miracletouchspa2@gmail.com",
+                ],
+              }),
+            }}
+          />
         </div>
       </div>
     </div>
