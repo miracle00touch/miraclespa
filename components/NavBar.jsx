@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { FiMenu } from "react-icons/fi";
@@ -46,7 +47,7 @@ const NavBar = () => {
     const isActive = pathname === path;
 
     return isActive && isHomePage
-      ? "relative text-brown-700 px-3 py-2 text-sm font-medium transition duration-300" // No underline for Home on homepage
+      ? "relative text-brown-700 px-3 py-2 text-sm font-medium transition duration-300"
       : isActive
       ? "relative text-brown-700 px-3 py-2 text-sm font-medium transition duration-300 after:content-[''] after:absolute after:left-0 after:bottom-[-2px] after:w-full after:h-[2px] after:bg-gray-800"
       : "relative text-brown-600 px-3 py-2 text-sm font-medium transition duration-300 hover:after:content-[''] hover:after:absolute hover:after:left-0 hover:after:bottom-[-2px] hover:after:w-full hover:after:h-[2px] hover:after:bg-gray-800";
@@ -60,12 +61,19 @@ const NavBar = () => {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
         <div className="flex justify-between items-center h-16 w-full">
-          <div className="flex-shrink-0">
-            <Link
-              href="/"
-              className="text-xl italic font-bold font-playfair tracking-wide text-brown-800"
-            >
-              Miracle Touch Spa
+          <div className="flex items-center space-x-3">
+            {/* Logo and Text */}
+            <Link href="/" className="flex items-center space-x-2">
+              <Image
+                src="/miracle_touch_spa.svg"
+                alt="Miracle Touch Spa Logo"
+                width={40} // Define width for the logo
+                height={40} // Define height for the logo
+                priority
+              />
+              <span className="hidden sm:block text-xl italic font-bold font-playfair tracking-wide text-brown-800">
+                Miracle Touch Spa
+              </span>
             </Link>
           </div>
           <div className="hidden md:flex space-x-4">
