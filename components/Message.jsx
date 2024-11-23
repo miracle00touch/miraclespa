@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { FaPaperPlane, FaTimes, FaSpinner } from "react-icons/fa";
-import emailjs from "emailjs-com";
+import emailjs from "@emailjs/browser";
 import ReCAPTCHA from "react-google-recaptcha";
 
 const Message = () => {
