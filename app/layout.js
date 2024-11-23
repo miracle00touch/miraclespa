@@ -17,24 +17,58 @@ const geistMono = localFont({
 });
 
 export const metadata = {
-  title: "Miracle Touch Spa",
-  description: "Relaxation and rejuvenation in the comfort of your space",
+  title: "Miracle Touch Spa - Relaxation Redefined",
+  description: "Relaxation and rejuvenation in the comfort of your space.",
+  openGraph: {
+    title: "Miracle Touch Spa - Relaxation Redefined",
+    description: "Relaxation and rejuvenation in the comfort of your space.",
+    url: "https://miracletouchspa.vercel.app",
+    type: "website",
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Miracle Touch Spa Logo and Tagline",
+      },
+    ],
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Miracle Touch Spa - Relaxation Redefined",
+    description: "Relaxation and rejuvenation in the comfort of your space.",
+    image: "/og-image.jpg",
+  },
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <head>
-        {/* Google Site Verification Meta Tag */}
+        {/* SEO Metadata */}
+        <meta name="description" content={metadata.description} />
+        <meta name="title" content={metadata.title} />
+        <meta property="og:title" content={metadata.openGraph.title} />
+        <meta
+          property="og:description"
+          content={metadata.openGraph.description}
+        />
+        <meta property="og:url" content={metadata.openGraph.url} />
+        <meta property="og:type" content={metadata.openGraph.type} />
+        <meta property="og:image" content={metadata.openGraph.images[0].url} />
+        <meta property="twitter:card" content={metadata.twitter.card} />
+        <meta property="twitter:title" content={metadata.twitter.title} />
+        <meta
+          property="twitter:description"
+          content={metadata.twitter.description}
+        />
+        <meta property="twitter:image" content={metadata.twitter.image} />
         <meta
           name="google-site-verification"
           content="DKT9nc5-rlF_hN3OgTZlVUXbUUVgMB3FzfpTgvyz72o"
         />
-        {/* Favicon */}
         <link rel="icon" href="/favicon.ico" />
-        {/* Metadata for SEO */}
-        <title>{metadata.title}</title>
-        <meta name="description" content={metadata.description} />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
