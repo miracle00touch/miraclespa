@@ -3,7 +3,10 @@ import { FaFacebook, FaEnvelope, FaPhoneAlt } from "react-icons/fa";
 
 const Footer = () => {
   return (
-    <footer className="bg-gradient-to-r from-brown-800 to-brown-600 text-beige-200 py-10">
+    <footer
+      className="bg-gradient-to-r from-brown-800 to-brown-600 text-beige-200 py-10"
+      role="contentinfo"
+    >
       <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center md:items-start space-y-8 md:space-y-0">
         {/* Left Section: Contact Information */}
         <div className="flex flex-col items-center md:items-start text-center md:text-left space-y-3">
@@ -11,8 +14,9 @@ const Footer = () => {
             Miracle Touch Spa
           </h2>
           <p className="text-beige-300 text-sm md:text-base font-serif">
-            Experience relaxation and rejuvenation at our spa, or contact us for
-            home-service appointments.
+            Relax and rejuvenate at Miracle Touch Spa, offering professional
+            massage and wellness services in [Your Location]. Contact us for
+            home-service appointments today.
           </p>
           <p className="flex items-center">
             <FaEnvelope className="mr-2" aria-hidden="true" />
@@ -45,18 +49,18 @@ const Footer = () => {
             <a
               href="https://facebook.com/miracletouchspa"
               target="_blank"
-              rel="noopener noreferrer"
+              rel="nofollow noopener noreferrer"
               className="text-beige-200 hover:text-beige-100 transition"
               aria-label="Visit Miracle Touch Spa's Facebook page"
             >
-              <FaFacebook size={24} />
+              <FaFacebook size={24} aria-hidden="true" />
             </a>
             <a
               href="tel:+639123456789"
               className="text-beige-200 hover:text-beige-100 transition"
               aria-label="Call Miracle Touch Spa Now"
             >
-              <FaPhoneAlt size={24} />
+              <FaPhoneAlt size={24} aria-hidden="true" />
             </a>
           </div>
         </div>
@@ -69,6 +73,30 @@ const Footer = () => {
           reserved.
         </p>
       </div>
+
+      {/* Local Business Schema */}
+      <script type="application/ld+json">
+        {`
+        {
+          "@context": "https://schema.org",
+          "@type": "LocalBusiness",
+          "name": "Miracle Touch Spa",
+          "description": "Relax and rejuvenate at Miracle Touch Spa. Contact us for home-service appointments.",
+          "telephone": "+639274736260",
+          "email": "miracletouchspa2@gmail.com",
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": "Manila",
+            "addressRegion": "Metro Manila",
+            "addressCountry": "PH"
+          },
+          "url": "https://facebook.com/miracletouchspa",
+          "sameAs": [
+            "https://facebook.com/miracletouchspa"
+          ]
+        }
+        `}
+      </script>
     </footer>
   );
 };
