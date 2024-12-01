@@ -47,6 +47,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <head>
         {/* SEO Metadata */}
+        <title>{metadata.title}</title>
         <meta name="description" content={metadata.description} />
         <meta name="title" content={metadata.title} />
         <meta property="og:title" content={metadata.openGraph.title} />
@@ -57,6 +58,7 @@ export default function RootLayout({ children }) {
         <meta property="og:url" content={metadata.openGraph.url} />
         <meta property="og:type" content={metadata.openGraph.type} />
         <meta property="og:image" content={metadata.openGraph.images[0].url} />
+        <meta property="og:locale" content={metadata.openGraph.locale} />
         <meta property="twitter:card" content={metadata.twitter.card} />
         <meta property="twitter:title" content={metadata.twitter.title} />
         <meta
@@ -68,6 +70,7 @@ export default function RootLayout({ children }) {
           name="google-site-verification"
           content="DKT9nc5-rlF_hN3OgTZlVUXbUUVgMB3FzfpTgvyz72o"
         />
+        <link rel="canonical" href="https://miracletouchspa.vercel.app/" />
         <link rel="icon" href="/favicon.ico" />
 
         {/* Schema.org Structured Data */}
