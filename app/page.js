@@ -10,7 +10,7 @@ export const metadata = {
     title: "Miracle Touch Spa - Relaxation Redefined",
     description:
       "Experience the best in relaxation with Miracle Touch Spa, serving Metro Manila including Quezon City, Makati, Manila, Taguig, and more. Book your session now!",
-    url: "https://miracletouchspa.vercel.app",
+    url: "https://miracletouchspa.vercel.app/",
     type: "website",
     images: [
       {
@@ -28,6 +28,9 @@ export const metadata = {
     description:
       "Experience the best in relaxation with Miracle Touch Spa, serving Metro Manila including Quezon City, Makati, Manila, Taguig, and more. Book your session now!",
     image: "/og-image.jpg",
+  },
+  alternates: {
+    canonical: "https://miracletouchspa.vercel.app/",
   },
 };
 
