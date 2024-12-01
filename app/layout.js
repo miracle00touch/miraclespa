@@ -23,6 +23,7 @@ export const metadata = {
     title: "Miracle Touch Spa - Relaxation Redefined",
     description: "Relaxation and rejuvenation in the comfort of your space.",
     url: "https://miracletouchspa.vercel.app",
+    siteName: "Miracle Touch Spa",
     type: "website",
     images: [
       {
