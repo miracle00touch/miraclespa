@@ -1,4 +1,3 @@
-// app/layout.js
 import localFont from "next/font/local";
 import "./globals.css";
 import NavBar from "@/components/NavBar";
@@ -73,6 +72,22 @@ export default function RootLayout({ children }) {
         />
         <link rel="canonical" href="https://miracletouchspa.vercel.app/" />
         <link rel="icon" href="/favicon.ico" />
+
+        {/* Google Tag (GTM) */}
+        <script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=AW-16782790647"
+        ></script>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'AW-16782790647');
+            `,
+          }}
+        />
 
         {/* Schema.org Structured Data */}
         <script
