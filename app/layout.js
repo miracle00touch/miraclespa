@@ -4,6 +4,8 @@ import NavBar from "@/components/NavBar";
 import Footer from "@/components/Footer";
 import Message from "@/components/Message";
 
+import { Analytics } from "@vercel/analytics/react";
+
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
   variable: "--font-geist-sans",
@@ -117,6 +119,7 @@ export default function RootLayout({ children }) {
       >
         <NavBar />
         <main className="pt-14 md:pt-16">{children}</main>
+        <Analytics />
         <Message />
         <Footer />
       </body>
