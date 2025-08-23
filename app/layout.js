@@ -1,9 +1,9 @@
+// app/layout.js
 import localFont from "next/font/local";
 import "./globals.css";
 import NavBar from "@/components/NavBar";
 import Footer from "@/components/Footer";
 import Message from "@/components/Message";
-
 import { Analytics } from "@vercel/analytics/react";
 
 const geistSans = localFont({
@@ -48,10 +48,9 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <head>
-        {/* SEO Metadata */}
+        {/* Global SEO Metadata */}
         <title>{metadata.title}</title>
         <meta name="description" content={metadata.description} />
-        <meta name="title" content={metadata.title} />
         <meta property="og:title" content={metadata.openGraph.title} />
         <meta
           property="og:description"
@@ -72,10 +71,10 @@ export default function RootLayout({ children }) {
           name="google-site-verification"
           content="DKT9nc5-rlF_hN3OgTZlVUXbUUVgMB3FzfpTgvyz72o"
         />
-        <link rel="canonical" href="https://miracletouchspa.vercel.app/" />
+        <link rel="canonical" href={metadata.openGraph.url} />
         <link rel="icon" href="/favicon.ico" />
 
-        {/* Google Tag (GTM) */}
+        {/* Google Tag Manager */}
         <script
           async
           src="https://www.googletagmanager.com/gtag/js?id=AW-16782790647"
@@ -100,16 +99,29 @@ export default function RootLayout({ children }) {
               "@type": "WebSite",
               name: "Miracle Touch Spa",
               alternateName: "Miracle Spa",
-              url: "https://miracletouchspa.vercel.app",
+              url: metadata.openGraph.url,
               potentialAction: {
                 "@type": "SearchAction",
-                target: {
-                  "@type": "EntryPoint",
-                  urlTemplate:
-                    "https://miracletouchspa.vercel.app/search?q={search_term_string}",
-                },
+                target: `${metadata.openGraph.url}/search?q={search_term_string}`,
                 "query-input": "required name=search_term_string",
               },
+            }),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "BreadcrumbList",
+              itemListElement: [
+                {
+                  "@type": "ListItem",
+                  position: 1,
+                  name: "Home",
+                  item: metadata.openGraph.url,
+                },
+              ],
             }),
           }}
         />
