@@ -10,26 +10,20 @@ const CACHE_CONTROL_HEADER = "public, s-maxage=300, stale-while-revalidate=60";
 
 // GET - Fetch all therapists or filter by gender (public)
 export async function GET(request) {
-  const requestId = Math.random().toString(36).substr(2, 9);
-  console.log(`GET /api/therapists [${requestId}] - Starting request`);
-
   try {
     const { searchParams } = new URL(request.url);
     const gender = searchParams.get("gender");
     const active = searchParams.get("active");
+    const clearCache = searchParams.get("clearCache");
 
-    console.log(
-      `[${requestId}] Query params: gender=${gender}, active=${active}`
-    );
+    // Force cache clear if requested
+    if (clearCache === "true") {
+      invalidateTherapistsCache();
+    }
 
     // Check cache first
     const cachedData = therapistsCache.get();
-    if (cachedData) {
-      const cacheInfo = therapistsCache.getInfo();
-      console.log(
-        `[${requestId}] Returning cached therapists (age=${cacheInfo.age}ms)`
-      );
-
+    if (cachedData && !clearCache) {
       let filteredTherapists = cachedData;
       if (gender)
         filteredTherapists = filteredTherapists.filter(
@@ -48,7 +42,6 @@ export async function GET(request) {
 
     // If a request is already in flight, wait for it (dedupe)
     if (pendingPromise) {
-      console.log(`[${requestId}] Waiting for pending request`);
       const result = await pendingPromise;
       let filteredResult = result;
       if (gender)
@@ -72,28 +65,10 @@ export async function GET(request) {
     );
 
     const dbOperation = async () => {
-      console.log(`[${requestId}] Attempting database connection...`);
-      console.log(`[${requestId}] Environment check:`, {
-        hasMongoUri: !!process.env.MONGODB_URI,
-        nodeEnv: process.env.NODE_ENV,
-        isVercel: !!process.env.VERCEL,
-      });
-
       await connectDB();
-      console.log(
-        `[${requestId}] Database connected successfully, running query...`
-      );
 
-      let query = {};
-      if (gender) query.gender = gender;
-      if (active === "true") query.isActive = true;
-
-      console.log(`[${requestId}] Query filter:`, query);
-
-      const therapists = await Therapist.find(query).sort({ createdAt: -1 });
-      console.log(
-        `[${requestId}] Database query successful, found ${therapists.length} therapists`
-      );
+      // Always fetch ALL therapists for caching, don't apply filters here
+      const therapists = await Therapist.find({}).sort({ createdAt: -1 });
       return therapists;
     };
 
@@ -123,21 +98,12 @@ export async function GET(request) {
           (t) => t.isActive === true
         );
 
-      console.log(`[${requestId}] Returning database results`);
       return NextResponse.json(
         { success: true, data: filteredTherapists },
         { headers: { "Cache-Control": CACHE_CONTROL_HEADER } }
       );
     } catch (dbError) {
-      console.error(`[${requestId}] Database operation failed:`, {
-        error: dbError.message,
-        code: dbError.code,
-        name: dbError.name,
-        stack: dbError.stack?.split("\n").slice(0, 3).join("\n"), // First 3 lines of stack
-      });
-
       // Return fallback data if database fails
-      console.log(`[${requestId}] Using fallback data due to database error`);
       const fallbackTherapists = [
         {
           _id: "fallback1",
@@ -149,54 +115,26 @@ export async function GET(request) {
           experience: "3 years",
           rating: 4.8,
           reviews: 45,
-          specialties: ["Swedish Massage", "Deep Tissue"],
-          images: [
-            "https://images.pexels.com/photos/3757946/pexels-photo-3757946.jpeg",
-          ],
+          images: ["/images/fallback-female.jpg"],
           description:
-            "Experienced therapist specializing in relaxation techniques.",
-          languages: ["English", "Filipino"],
-          availability: ["morning", "afternoon", "evening"],
-          hourlyRate: 2500,
+            "Professional massage therapist specializing in relaxation",
+          specialties: ["Swedish Massage", "Hot Stone"],
+          price: "₱2,500/session",
         },
         {
           _id: "fallback2",
-          name: "Sofia",
-          gender: "female",
-          isActive: true,
-          age: 28,
-          location: "Metro Manila",
-          experience: "5 years",
-          rating: 4.9,
-          reviews: 62,
-          specialties: ["Aromatherapy", "Hot Stone"],
-          images: [
-            "https://images.pexels.com/photos/3757948/pexels-photo-3757948.jpeg",
-          ],
-          description: "Expert in therapeutic and wellness massage.",
-          languages: ["English", "Filipino"],
-          availability: ["afternoon", "evening"],
-          hourlyRate: 3000,
-        },
-        {
-          _id: "fallback3",
           name: "Carlos",
           gender: "male",
           isActive: true,
-          age: 30,
+          age: 28,
           location: "Metro Manila",
           experience: "4 years",
-          rating: 4.7,
-          reviews: 38,
-          specialties: ["Sports Massage", "Deep Tissue"],
-          images: [
-            "https://images.pexels.com/photos/6560289/pexels-photo-6560289.jpeg",
-          ],
-          description:
-            "Professional male therapist specializing in sports and therapeutic massage.",
-          languages: ["English", "Filipino"],
-          availability: ["evening", "night"],
-          hourlyRate: 2800,
+          rating: 4.9,
+          reviews: 52,
+          images: ["/images/fallback-male.jpg"],
+          description: "Expert in deep tissue and sports massage therapy",
+          specialties: ["Deep Tissue", "Sports Massage"],
+          price: "₱2,800/session",
         },
       ];
 
@@ -216,9 +154,6 @@ export async function GET(request) {
       // Cache fallback data temporarily
       therapistsCache.set(fallbackTherapists);
 
-      console.log(
-        `[${requestId}] Returning ${filteredTherapists.length} fallback therapists`
-      );
       return NextResponse.json(
         {
           success: true,

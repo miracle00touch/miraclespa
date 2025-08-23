@@ -219,30 +219,39 @@ const AdminPanel = () => {
     }
   }, []);
 
-  const loadTherapists = useCallback(async () => {
-    try {
-      const response = await fetch("/api/therapists");
+  const loadTherapists = useCallback(
+    async (clearCache = false) => {
+      try {
+        const url = clearCache
+          ? "/api/therapists?clearCache=true"
+          : "/api/therapists";
+        const response = await fetch(url);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          setTherapists([]);
+          return;
+        }
+
+        const data = await response.json();
+        if (data.success) {
+          setTherapists(data.data || []);
+          if (clearCache) {
+            toast.success("Therapists data refreshed");
+          }
+        } else {
+          setTherapists([]);
+        }
+      } catch (error) {
         setTherapists([]);
-        return;
       }
-
-      const data = await response.json();
-      if (data.success) {
-        setTherapists(data.data || []);
-      } else {
-        setTherapists([]);
-      }
-    } catch (error) {
-      setTherapists([]);
-    }
-  }, []);
+    },
+    [toast]
+  );
 
   const loadContacts = useCallback(async () => {
     try {
@@ -625,16 +634,26 @@ const AdminPanel = () => {
               <h2 className="text-2xl font-bold text-gray-900">
                 Therapist Management
               </h2>
-              <button
-                onClick={() => {
-                  setEditingTherapist(null);
-                  setShowTherapistForm(true);
-                }}
-                className="bg-brown-600 text-white px-4 py-2 rounded-md hover:bg-brown-700 flex items-center"
-              >
-                <FaPlus className="mr-2" />
-                Add New Therapist
-              </button>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => loadTherapists(true)}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center"
+                  title="Refresh therapist data"
+                >
+                  <FaCog className="mr-2" />
+                  Refresh
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingTherapist(null);
+                    setShowTherapistForm(true);
+                  }}
+                  className="bg-brown-600 text-white px-4 py-2 rounded-md hover:bg-brown-700 flex items-center"
+                >
+                  <FaPlus className="mr-2" />
+                  Add New Therapist
+                </button>
+              </div>
             </div>
 
             <div className="mb-4 flex items-center justify-between">
