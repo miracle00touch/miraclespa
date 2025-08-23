@@ -3,41 +3,100 @@ import Service from "@/models/Service";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 
+// Per-instance cache to avoid hitting DB on repeated requests
+let cachedServices = null;
+let cacheTs = 0;
+let pendingPromise = null;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_CONTROL_HEADER = "public, s-maxage=300, stale-while-revalidate=60";
+
 // GET - Fetch all services (public)
 export async function GET(request) {
-  console.log("GET /api/services - Starting request");
+  const requestId = Math.random().toString(36).substr(2, 9);
+  console.log(`GET /api/services [${requestId}] - Starting request`);
 
   try {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get("category");
 
-    console.log(`Query params: category=${category}`);
+    console.log(`[${requestId}] Query params: category=${category}`);
+
+    // Check cache first (with category consideration)
+    const cacheKey = category ? `services_${category}` : 'services_all';
+    const now = Date.now();
+    if (cachedServices && cachedServices.key === cacheKey && now - cacheTs < CACHE_TTL) {
+      console.log(`[${requestId}] Returning cached services (age=${now - cacheTs}ms)`);
+      return NextResponse.json(
+        { success: true, data: cachedServices.data, cached: true },
+        { headers: { "Cache-Control": CACHE_CONTROL_HEADER } }
+      );
+    }
+
+    // If a request is already in flight, wait for it (dedupe)
+    if (pendingPromise) {
+      console.log(`[${requestId}] Waiting for pending request`);
+      const result = await pendingPromise;
+      // Filter result if needed
+      let filteredResult = result;
+      if (category) {
+        filteredResult = result.filter(s => s.category === category);
+      }
+      return NextResponse.json(
+        { success: true, data: filteredResult },
+        { headers: { "Cache-Control": CACHE_CONTROL_HEADER } }
+      );
+    }
+
+    // Add small random delay to stagger simultaneous requests
+    const delay = Math.random() * 500; // 0-0.5 second
+    await new Promise((resolve) => setTimeout(resolve, delay));
 
     // Try database with shorter timeout first
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Database operation timeout")), 15000)
+      setTimeout(() => reject(new Error("Database operation timeout")), 12000)
     );
 
     const dbOperation = async () => {
-      console.log("Attempting database connection...");
+      console.log(`[${requestId}] Attempting database connection...`);
       await connectDB();
-      console.log("Database connected, running query...");
+      console.log(`[${requestId}] Database connected, running query...`);
 
       let query = { isActive: true };
       if (category) query.category = category;
 
       const services = await Service.find(query).sort({ order: 1 });
-      console.log(
-        `Database query successful, found ${services.length} services`
-      );
+      console.log(`[${requestId}] Database query successful, found ${services.length} services`);
       return services;
     };
 
+    // Store the pending promise to dedupe concurrent requests
+    pendingPromise = (async () => {
+      try {
+        const services = await Promise.race([dbOperation(), timeoutPromise]);
+        // Cache the full result
+        cachedServices = { key: 'services_all', data: services };
+        cacheTs = Date.now();
+        return services;
+      } finally {
+        pendingPromise = null;
+      }
+    })();
+
     try {
-      const services = await Promise.race([dbOperation(), timeoutPromise]);
-      return NextResponse.json({ success: true, data: services });
+      const services = await pendingPromise;
+      
+      // Filter if category is specified
+      let filteredServices = services;
+      if (category) {
+        filteredServices = services.filter(s => s.category === category);
+      }
+      
+      return NextResponse.json(
+        { success: true, data: filteredServices },
+        { headers: { "Cache-Control": CACHE_CONTROL_HEADER } }
+      );
     } catch (dbError) {
-      console.error("Database operation failed:", dbError.message);
+      console.error(`[${requestId}] Database operation failed:`, dbError.message);
 
       // Return fallback service data
       const fallbackServices = [
@@ -90,19 +149,26 @@ export async function GET(request) {
         );
       }
 
-      console.log(`Returning ${filteredServices.length} fallback services`);
-      return NextResponse.json({
-        success: true,
-        data: filteredServices,
-        fallback: true,
-        message: "Using fallback data due to database connectivity issues",
-      });
+      // Cache fallback data temporarily
+      cachedServices = { key: 'services_all', data: fallbackServices };
+      cacheTs = Date.now();
+
+      console.log(`[${requestId}] Returning ${filteredServices.length} fallback services`);
+      return NextResponse.json(
+        {
+          success: true,
+          data: filteredServices,
+          fallback: true,
+          message: "Using fallback data due to database connectivity issues",
+        },
+        { headers: { "Cache-Control": CACHE_CONTROL_HEADER } }
+      );
     }
   } catch (error) {
-    console.error("GET /api/services - Unexpected error:", error.message);
+    console.error(`GET /api/services [${requestId}] - Unexpected error:`, error.message);
     return NextResponse.json(
-      { success: false, error: error.message, fallback: false },
-      { status: 500 }
+      { success: false, error: error.message },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
 }
@@ -119,6 +185,10 @@ export const POST = requireAuth(async function (request) {
     body.createdAt = new Date();
 
     const service = await Service.create(body);
+
+    // Clear cache when new service is added
+    cachedServices = null;
+    cacheTs = 0;
 
     return NextResponse.json({ success: true, data: service }, { status: 201 });
   } catch (error) {

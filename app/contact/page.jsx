@@ -32,7 +32,7 @@ const Contact = () => {
     getWeChatContact,
     loading,
     error,
-  } = useContacts();
+  } = useContacts({ autoFetch: false });
 
   // Get contact numbers with fallbacks
   const phoneNumber = getPrimaryPhone() || "+639274736260";

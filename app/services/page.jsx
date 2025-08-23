@@ -7,12 +7,14 @@ const Services = () => {
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [loadingStarted, setLoadingStarted] = useState(false); // Prevent duplicate calls
 
   const {
     getPrimaryPhone,
     getPrimaryEmail,
     loading: contactsLoading,
-  } = useContacts();
+    fetchContacts: fetchContactsExplicit,
+  } = useContacts({ autoFetch: true }); // Changed to auto-fetch
 
   // Get contact info with fallbacks
   const phoneNumber = getPrimaryPhone() || "+639274736260";
@@ -20,13 +22,30 @@ const Services = () => {
 
   // Load services from API
   useEffect(() => {
-    loadServices();
-  }, []);
+    if (!loadingStarted) {
+      setLoadingStarted(true);
+      loadServices();
+    }
+  }, [loadingStarted]);
 
   const loadServices = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/services");
+      setError(null);
+
+      // Add slight delay to avoid cold start issues
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const response = await fetch("/api/services", {
+        headers: {
+          "Cache-Control": "public, max-age=300, stale-while-revalidate=60",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
       const data = await response.json();
       if (data.success) {
         // Sort services by category priority and order
@@ -39,11 +58,11 @@ const Services = () => {
         });
         setServices(sortedServices);
       } else {
-        setError("Failed to load services");
+        setError(data.error || "Failed to load services");
       }
     } catch (err) {
-      setError("Failed to load services");
       console.error("Error loading services:", err);
+      setError(`Failed to load services: ${err.message}`);
     } finally {
       setLoading(false);
     }

@@ -21,12 +21,14 @@ const Female = () => {
   const [massagers, setMassagers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [loadingStarted, setLoadingStarted] = useState(false); // Prevent duplicate calls
 
   const {
     getPrimaryPhone,
     getWhatsAppNumber,
     loading: contactsLoading,
-  } = useContacts();
+    fetchContacts: fetchContactsExplicit,
+  } = useContacts({ autoFetch: true }); // Changed to auto-fetch
 
   // Get contact info with fallbacks
   const phoneNumber = getPrimaryPhone() || "+639274736260";
@@ -34,22 +36,45 @@ const Female = () => {
 
   // Load female therapists from API
   useEffect(() => {
-    loadTherapists();
-  }, []);
+    if (!loadingStarted) {
+      setLoadingStarted(true);
+      loadTherapists();
+    }
+  }, [loadingStarted]);
 
   const loadTherapists = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/therapists?gender=female&active=true");
+      setError(null);
+
+      // Add slight delay to avoid cold start issues
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      const response = await fetch(
+        "/api/therapists?gender=female&active=true",
+        {
+          headers: {
+            "Cache-Control": "public, max-age=300, stale-while-revalidate=60",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
       const data = await response.json();
-      if (data.success) {
+      if (data.success && Array.isArray(data.data)) {
         setMassagers(data.data);
       } else {
-        setError("Failed to load therapists");
+        console.error("Invalid data structure:", data);
+        setError(
+          data.error || "Failed to load therapists - invalid data structure"
+        );
       }
     } catch (err) {
-      setError("Failed to load therapists");
       console.error("Error loading therapists:", err);
+      setError(`Failed to load therapists: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -205,17 +230,17 @@ const Female = () => {
   };
 
   const nextImage = () => {
-    if (selectedTherapist && selectedTherapist.images.length > 1) {
+    if (selectedTherapist && (selectedTherapist.images || []).length > 1) {
       setCurrentImageIndex((prev) =>
-        prev === selectedTherapist.images.length - 1 ? 0 : prev + 1
+        prev === (selectedTherapist.images || []).length - 1 ? 0 : prev + 1
       );
     }
   };
 
   const prevImage = () => {
-    if (selectedTherapist && selectedTherapist.images.length > 1) {
+    if (selectedTherapist && (selectedTherapist.images || []).length > 1) {
       setCurrentImageIndex((prev) =>
-        prev === 0 ? selectedTherapist.images.length - 1 : prev - 1
+        prev === 0 ? (selectedTherapist.images || []).length - 1 : prev - 1
       );
     }
   };
@@ -273,76 +298,105 @@ const Female = () => {
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-        {massagers.map((massager) => (
-          <div
-            key={massager._id || massager.id}
-            onClick={() => openModal(massager)}
-            className="bg-white shadow-lg rounded-lg overflow-hidden transform hover:scale-105 transition-all duration-300 cursor-pointer hover:shadow-2xl group"
-          >
-            <div className="relative w-full h-56 overflow-hidden">
-              <Image
-                src={massager.images[0]}
-                alt={massager.name}
-                fill
-                sizes="(max-width: 640px) 100vw,
+        {Array.isArray(massagers) && massagers.length > 0 ? (
+          massagers.map((massager) => (
+            <div
+              key={massager._id || massager.id}
+              onClick={() => openModal(massager)}
+              className="bg-white shadow-lg rounded-lg overflow-hidden transform hover:scale-105 transition-all duration-300 cursor-pointer hover:shadow-2xl group"
+            >
+              <div className="relative w-full h-56 overflow-hidden">
+                <Image
+                  src={
+                    massager.images?.[0] ||
+                    massager.image ||
+                    "https://images.pexels.com/photos/3757946/pexels-photo-3757946.jpeg"
+                  }
+                  alt={massager.name || "Therapist"}
+                  fill
+                  sizes="(max-width: 640px) 100vw,
                        (max-width: 1024px) 50vw,
                        (max-width: 1280px) 25vw,
                        20vw"
-                className="object-cover h-full w-full group-hover:scale-110 transition-transform duration-500"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="absolute bottom-4 left-4 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <div className="flex items-center space-x-2">
-                  <FaStar className="text-yellow-400" />
-                  <span className="font-semibold">{massager.rating}</span>
-                  <span className="text-sm">({massager.reviews} reviews)</span>
+                  className="object-cover h-full w-full group-hover:scale-110 transition-transform duration-500"
+                  onError={(e) => {
+                    e.target.src =
+                      "https://images.pexels.com/photos/3757946/pexels-photo-3757946.jpeg";
+                  }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="absolute bottom-4 left-4 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <div className="flex items-center space-x-2">
+                    <FaStar className="text-yellow-400" />
+                    <span className="font-semibold">
+                      {massager.rating || 5.0}
+                    </span>
+                    <span className="text-sm">
+                      ({massager.reviews || 0} reviews)
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="p-4">
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="text-xl font-semibold text-gray-800">
+                    {massager.name || "Therapist"}
+                  </h3>
+                  <span className="text-brown-600 font-medium text-sm">
+                    {massager.age || "25"} years
+                  </span>
+                </div>
+                <div className="flex items-center text-sm text-gray-600 mb-2">
+                  <FaMapMarkerAlt className="mr-1" />
+                  <span>{massager.location || "Metro Manila"}</span>
+                  <span className="mx-2">•</span>
+                  <span>{massager.experience || "Experienced"} exp</span>
+                </div>
+                <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                  {massager.description ||
+                    "Professional therapist with extensive experience."}
+                </p>
+                <div className="flex flex-wrap gap-1 mb-3">
+                  {(massager.specialties || [])
+                    .slice(0, 2)
+                    .map((specialty, index) => (
+                      <span
+                        key={index}
+                        className="bg-brown-100 text-brown-700 px-2 py-1 rounded-full text-xs"
+                      >
+                        {specialty}
+                      </span>
+                    ))}
+                  {(massager.specialties || []).length > 2 && (
+                    <span className="text-brown-600 text-xs">
+                      +{(massager.specialties || []).length - 2} more
+                    </span>
+                  )}
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-brown-800 font-bold">
+                    {massager.price || massager.hourlyRate
+                      ? `₱${massager.hourlyRate || massager.price}`
+                      : "Contact for rates"}
+                  </span>
+                  <button className="bg-brown-600 hover:bg-brown-700 text-white px-3 py-1 rounded-full text-sm transition-colors">
+                    View Profile
+                  </button>
                 </div>
               </div>
             </div>
-            <div className="p-4">
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="text-xl font-semibold text-gray-800">
-                  {massager.name}
-                </h3>
-                <span className="text-brown-600 font-medium text-sm">
-                  {massager.age} years
-                </span>
-              </div>
-              <div className="flex items-center text-sm text-gray-600 mb-2">
-                <FaMapMarkerAlt className="mr-1" />
-                <span>{massager.location}</span>
-                <span className="mx-2">•</span>
-                <span>{massager.experience} exp</span>
-              </div>
-              <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                {massager.description}
-              </p>
-              <div className="flex flex-wrap gap-1 mb-3">
-                {massager.specialties.slice(0, 2).map((specialty, index) => (
-                  <span
-                    key={index}
-                    className="bg-brown-100 text-brown-700 px-2 py-1 rounded-full text-xs"
-                  >
-                    {specialty}
-                  </span>
-                ))}
-                {massager.specialties.length > 2 && (
-                  <span className="text-brown-600 text-xs">
-                    +{massager.specialties.length - 2} more
-                  </span>
-                )}
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-brown-800 font-bold">
-                  {massager.price}
-                </span>
-                <button className="bg-brown-600 hover:bg-brown-700 text-white px-3 py-1 rounded-full text-sm transition-colors">
-                  View Profile
-                </button>
-              </div>
-            </div>
+          ))
+        ) : (
+          <div className="col-span-full text-center py-12">
+            <p className="text-gray-500 text-lg">
+              {loading
+                ? "Loading therapists..."
+                : error
+                ? error
+                : "No therapists available at the moment."}
+            </p>
           </div>
-        ))}
+        )}
       </div>
 
       {/* Modal */}

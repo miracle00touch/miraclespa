@@ -3,15 +3,39 @@ import Contact from "@/models/Contact";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 
+// Per-instance cache to avoid hitting DB on repeated requests to the same
+// serverless instance. This helps reduce cold starts and DB pressure.
+let cachedContacts = null;
+let cacheTs = 0;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_CONTROL_HEADER = "public, s-maxage=300, stale-while-revalidate=60";
+
 // GET - Fetch all contacts (public - for displaying contact info)
 export async function GET() {
   const requestId = Math.random().toString(36).substr(2, 9);
   console.log(`GET /api/contacts [${requestId}] - Starting request`);
 
+  // Return cached response quickly when fresh
+  try {
+    const now = Date.now();
+    if (cachedContacts && now - cacheTs < CACHE_TTL) {
+      console.log(
+        `[${requestId}] Returning cached contacts (age=${now - cacheTs}ms)`
+      );
+      return NextResponse.json(
+        { success: true, data: cachedContacts, cached: true },
+        { headers: { "Cache-Control": CACHE_CONTROL_HEADER } }
+      );
+    }
+  } catch (cacheErr) {
+    // ignore cache read errors and continue to fetch
+    console.error(`[${requestId}] Cache check failed:`, cacheErr.message);
+  }
+
   try {
     // Add small random delay to stagger simultaneous requests
     const delay = Math.random() * 800; // 0-0.8 second
-    await new Promise(resolve => setTimeout(resolve, delay));
+    await new Promise((resolve) => setTimeout(resolve, delay));
 
     // Try database with shorter timeout first
     const timeoutPromise = new Promise((_, reject) =>
@@ -34,7 +58,18 @@ export async function GET() {
 
     try {
       const contacts = await Promise.race([dbOperation(), timeoutPromise]);
-      return NextResponse.json({ success: true, data: contacts });
+      // store in per-instance cache
+      try {
+        cachedContacts = contacts;
+        cacheTs = Date.now();
+      } catch (err) {
+        console.error(`[${requestId}] Failed to write cache:`, err.message);
+      }
+
+      return NextResponse.json(
+        { success: true, data: contacts },
+        { headers: { "Cache-Control": CACHE_CONTROL_HEADER } }
+      );
     } catch (dbError) {
       console.error("Database operation failed:", dbError.message);
 
@@ -61,18 +96,29 @@ export async function GET() {
       ];
 
       console.log(`Returning ${fallbackContacts.length} fallback contacts`);
-      return NextResponse.json({
-        success: true,
-        data: fallbackContacts,
-        fallback: true,
-        message: "Using fallback data due to database connectivity issues",
-      });
+      // also place fallback in cache for short period
+      try {
+        cachedContacts = fallbackContacts;
+        cacheTs = Date.now();
+      } catch (err) {
+        console.error(`Failed to write fallback to cache: ${err.message}`);
+      }
+
+      return NextResponse.json(
+        {
+          success: true,
+          data: fallbackContacts,
+          fallback: true,
+          message: "Using fallback data due to database connectivity issues",
+        },
+        { headers: { "Cache-Control": CACHE_CONTROL_HEADER } }
+      );
     }
   } catch (error) {
     console.error("GET /api/contacts - Unexpected error:", error.message);
     return NextResponse.json(
       { success: false, error: error.message, fallback: false },
-      { status: 500 }
+      { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
 }

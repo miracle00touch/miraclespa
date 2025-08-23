@@ -19,38 +19,56 @@ import {
 const Male = () => {
   const [selectedTherapist, setSelectedTherapist] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [massagers, setMassagers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [loadingStarted, setLoadingStarted] = useState(false); // Prevent duplicate calls
 
   const {
     getPrimaryPhone,
     getWhatsAppNumber,
     loading: contactsLoading,
-  } = useContacts();
+  } = useContacts({ autoFetch: true }); // Changed to auto-fetch
 
   // Get contact info with fallbacks
   const phoneNumber = getPrimaryPhone() || "+639274736260";
   const whatsappNumber = getWhatsAppNumber() || phoneNumber;
-  const [massagers, setMassagers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   // Load male therapists from API
   useEffect(() => {
-    loadTherapists();
-  }, []);
+    if (!loadingStarted) {
+      setLoadingStarted(true);
+      loadTherapists();
+    }
+  }, [loadingStarted]);
 
   const loadTherapists = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/therapists?gender=male&active=true");
+      setError(null);
+
+      // Add slight delay to avoid cold start issues
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      const response = await fetch("/api/therapists?gender=male&active=true", {
+        headers: {
+          "Cache-Control": "public, max-age=300, stale-while-revalidate=60",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
       const data = await response.json();
       if (data.success) {
         setMassagers(data.data);
       } else {
-        setError("Failed to load therapists");
+        setError(data.error || "Failed to load therapists");
       }
     } catch (err) {
-      setError("Failed to load therapists");
       console.error("Error loading therapists:", err);
+      setError(`Failed to load therapists: ${err.message}`);
     } finally {
       setLoading(false);
     }

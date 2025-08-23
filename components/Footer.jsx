@@ -5,7 +5,8 @@ import { FaFacebook, FaEnvelope, FaPhoneAlt } from "react-icons/fa";
 import { useContacts } from "../hooks/useContacts";
 
 const Footer = () => {
-  const { getPrimaryPhone, getPrimaryEmail, loading, error } = useContacts();
+  const { getPrimaryPhone, getPrimaryEmail, loading, error, fetchContacts } =
+    useContacts({ autoFetch: false });
 
   // Fallback values if data is not available
   const phoneNumber = getPrimaryPhone() || "+639274736260";

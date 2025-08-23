@@ -5,7 +5,9 @@ import { FaMapMarkerAlt, FaPhoneAlt, FaEnvelope } from "react-icons/fa";
 import { useContacts } from "../hooks/useContacts";
 
 const ContactInfo = () => {
-  const { getPrimaryPhone, getPrimaryEmail, loading, error } = useContacts();
+  const { getPrimaryPhone, getPrimaryEmail, loading, error } = useContacts({
+    autoFetch: false,
+  });
 
   // Get contact info with fallbacks
   const phoneNumber = getPrimaryPhone() || "+63 927 473 6260";

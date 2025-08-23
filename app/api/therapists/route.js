@@ -3,6 +3,13 @@ import Therapist from "@/models/Therapist";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 
+// Per-instance cache to avoid hitting DB on repeated requests
+let cachedTherapists = null;
+let cacheTs = 0;
+let pendingPromise = null;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_CONTROL_HEADER = "public, s-maxage=300, stale-while-revalidate=60";
+
 // GET - Fetch all therapists or filter by gender (public)
 export async function GET(request) {
   const requestId = Math.random().toString(36).substr(2, 9);
@@ -13,11 +20,51 @@ export async function GET(request) {
     const gender = searchParams.get("gender");
     const active = searchParams.get("active");
 
-    console.log(`[${requestId}] Query params: gender=${gender}, active=${active}`);
+    console.log(
+      `[${requestId}] Query params: gender=${gender}, active=${active}`
+    );
+
+    // Check cache first
+    const now = Date.now();
+    if (cachedTherapists && now - cacheTs < CACHE_TTL) {
+      console.log(
+        `[${requestId}] Returning cached therapists (age=${now - cacheTs}ms)`
+      );
+      let filteredTherapists = cachedTherapists;
+      if (gender)
+        filteredTherapists = filteredTherapists.filter(
+          (t) => t.gender === gender
+        );
+      if (active === "true")
+        filteredTherapists = filteredTherapists.filter(
+          (t) => t.isActive === true
+        );
+
+      return NextResponse.json(
+        { success: true, data: filteredTherapists, cached: true },
+        { headers: { "Cache-Control": CACHE_CONTROL_HEADER } }
+      );
+    }
+
+    // If a request is already in flight, wait for it (dedupe)
+    if (pendingPromise) {
+      console.log(`[${requestId}] Waiting for pending request`);
+      const result = await pendingPromise;
+      let filteredResult = result;
+      if (gender)
+        filteredResult = filteredResult.filter((t) => t.gender === gender);
+      if (active === "true")
+        filteredResult = filteredResult.filter((t) => t.isActive === true);
+
+      return NextResponse.json(
+        { success: true, data: filteredResult },
+        { headers: { "Cache-Control": CACHE_CONTROL_HEADER } }
+      );
+    }
 
     // Add small random delay to stagger simultaneous requests
-    const delay = Math.random() * 1000; // 0-1 second
-    await new Promise(resolve => setTimeout(resolve, delay));
+    const delay = Math.random() * 700; // 0-0.7 second
+    await new Promise((resolve) => setTimeout(resolve, delay));
 
     // Try database with shorter timeout first
     const timeoutPromise = new Promise((_, reject) =>
@@ -40,12 +87,43 @@ export async function GET(request) {
       return therapists;
     };
 
+    // Store the pending promise to dedupe concurrent requests
+    pendingPromise = (async () => {
+      try {
+        const therapists = await Promise.race([dbOperation(), timeoutPromise]);
+        // Cache the full result
+        cachedTherapists = therapists;
+        cacheTs = Date.now();
+        return therapists;
+      } finally {
+        pendingPromise = null;
+      }
+    })();
+
     try {
-      const therapists = await Promise.race([dbOperation(), timeoutPromise]);
+      const therapists = await pendingPromise;
+
+      // Filter based on query params
+      let filteredTherapists = therapists;
+      if (gender)
+        filteredTherapists = filteredTherapists.filter(
+          (t) => t.gender === gender
+        );
+      if (active === "true")
+        filteredTherapists = filteredTherapists.filter(
+          (t) => t.isActive === true
+        );
+
       console.log(`[${requestId}] Returning database results`);
-      return NextResponse.json({ success: true, data: therapists });
+      return NextResponse.json(
+        { success: true, data: filteredTherapists },
+        { headers: { "Cache-Control": CACHE_CONTROL_HEADER } }
+      );
     } catch (dbError) {
-      console.error(`[${requestId}] Database operation failed:`, dbError.message);
+      console.error(
+        `[${requestId}] Database operation failed:`,
+        dbError.message
+      );
 
       // Return fallback data if database fails
       const fallbackTherapists = [
@@ -54,21 +132,59 @@ export async function GET(request) {
           name: "Maria",
           gender: "female",
           isActive: true,
+          age: 25,
+          location: "Metro Manila",
+          experience: "3 years",
+          rating: 4.8,
+          reviews: 45,
           specialties: ["Swedish Massage", "Deep Tissue"],
-          image:
+          images: [
             "https://images.pexels.com/photos/3757946/pexels-photo-3757946.jpeg",
+          ],
           description:
             "Experienced therapist specializing in relaxation techniques.",
+          languages: ["English", "Filipino"],
+          availability: ["morning", "afternoon", "evening"],
+          hourlyRate: 2500,
         },
         {
           _id: "fallback2",
           name: "Sofia",
           gender: "female",
           isActive: true,
+          age: 28,
+          location: "Metro Manila",
+          experience: "5 years",
+          rating: 4.9,
+          reviews: 62,
           specialties: ["Aromatherapy", "Hot Stone"],
-          image:
+          images: [
             "https://images.pexels.com/photos/3757948/pexels-photo-3757948.jpeg",
+          ],
           description: "Expert in therapeutic and wellness massage.",
+          languages: ["English", "Filipino"],
+          availability: ["afternoon", "evening"],
+          hourlyRate: 3000,
+        },
+        {
+          _id: "fallback3",
+          name: "Carlos",
+          gender: "male",
+          isActive: true,
+          age: 30,
+          location: "Metro Manila",
+          experience: "4 years",
+          rating: 4.7,
+          reviews: 38,
+          specialties: ["Sports Massage", "Deep Tissue"],
+          images: [
+            "https://images.pexels.com/photos/6560289/pexels-photo-6560289.jpeg",
+          ],
+          description:
+            "Professional male therapist specializing in sports and therapeutic massage.",
+          languages: ["English", "Filipino"],
+          availability: ["evening", "night"],
+          hourlyRate: 2800,
         },
       ];
 
@@ -85,19 +201,31 @@ export async function GET(request) {
         );
       }
 
-      console.log(`[${requestId}] Returning ${filteredTherapists.length} fallback therapists`);
-      return NextResponse.json({
-        success: true,
-        data: filteredTherapists,
-        fallback: true,
-        message: "Using fallback data due to database connectivity issues",
-      });
+      // Cache fallback data temporarily
+      cachedTherapists = fallbackTherapists;
+      cacheTs = Date.now();
+
+      console.log(
+        `[${requestId}] Returning ${filteredTherapists.length} fallback therapists`
+      );
+      return NextResponse.json(
+        {
+          success: true,
+          data: filteredTherapists,
+          fallback: true,
+          message: "Using fallback data due to database connectivity issues",
+        },
+        { headers: { "Cache-Control": CACHE_CONTROL_HEADER } }
+      );
     }
   } catch (error) {
-    console.error(`[${requestId}] GET /api/therapists - Unexpected error:`, error.message);
+    console.error(
+      `[${requestId}] GET /api/therapists - Unexpected error:`,
+      error.message
+    );
     return NextResponse.json(
-      { success: false, error: error.message, fallback: false },
-      { status: 500 }
+      { success: false, error: error.message },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
 }
@@ -114,6 +242,10 @@ export const POST = requireAuth(async function (request) {
     body.createdAt = new Date();
 
     const therapist = await Therapist.create(body);
+
+    // Clear cache when new therapist is added
+    cachedTherapists = null;
+    cacheTs = 0;
 
     return NextResponse.json(
       { success: true, data: therapist },

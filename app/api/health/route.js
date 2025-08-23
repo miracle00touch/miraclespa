@@ -9,11 +9,21 @@ export async function GET() {
       environment: process.env.NODE_ENV || "unknown",
       hasMongoUri: !!process.env.MONGODB_URI,
       version: "1.0.0",
+      uptime: process.uptime(),
+      performance: {
+        memoryUsage: process.memoryUsage(),
+        nodeVersion: process.version,
+      },
     };
 
     console.log("Health check:", health);
 
-    return NextResponse.json(health);
+    return NextResponse.json(health, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+        "x-health-check": "true",
+      },
+    });
   } catch (error) {
     console.error("Health check error:", error.message);
     return NextResponse.json(

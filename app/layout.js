@@ -5,6 +5,7 @@ import "./globals.css";
 import NavBar from "@/components/NavBar";
 import Footer from "@/components/Footer";
 import Message from "@/components/Message";
+import ContactsProvider from "@/contexts/ContactsProvider";
 import { Analytics } from "@vercel/analytics/react";
 
 const geistSans = localFont({
@@ -180,7 +181,9 @@ export default function RootLayout({ children }) {
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
       >
         <NavBar />
-        <main className="pt-14 md:pt-16 flex-grow">{children}</main>
+        <ContactsProvider>
+          <main className="pt-14 md:pt-16 flex-grow">{children}</main>
+        </ContactsProvider>
         <Analytics />
         <Message />
         <Footer />

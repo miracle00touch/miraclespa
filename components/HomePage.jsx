@@ -6,7 +6,9 @@ import Image from "next/image";
 import { useContacts } from "../hooks/useContacts";
 
 export default function HomePage() {
-  const { getPrimaryPhone, getPrimaryEmail, loading, error } = useContacts();
+  const { getPrimaryPhone, getPrimaryEmail, loading, error } = useContacts({
+    autoFetch: true, // Changed to true to load contacts automatically
+  });
 
   // Get contact info with fallbacks
   const phoneNumber = getPrimaryPhone() || "(+63) 927 473 6260";

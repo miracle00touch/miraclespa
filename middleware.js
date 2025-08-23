@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 
 export function middleware(request) {
-  // Add security headers
   const response = NextResponse.next();
 
   // Security headers
@@ -18,10 +17,30 @@ export function middleware(request) {
     );
   }
 
+  // Add cache headers for API routes to help with concurrent requests
+  if (request.nextUrl.pathname.startsWith("/api/")) {
+    // Add request ID for debugging
+    const requestId = Math.random().toString(36).substr(2, 9);
+    response.headers.set("x-request-id", requestId);
+
+    // For public API routes, add cache headers
+    if (request.nextUrl.pathname.match(/\/(contacts|services|therapists)$/)) {
+      response.headers.set(
+        "Cache-Control",
+        "public, s-maxage=300, stale-while-revalidate=60"
+      );
+    }
+  }
+
+  // Add performance headers
+  response.headers.set("X-DNS-Prefetch-Control", "on");
+
   return response;
 }
 
 export const config = {
-  // Apply to all routes
-  matcher: "/((?!api|_next/static|_next/image|favicon.ico).*)",
+  // Apply to all routes except static assets
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)",
+  ],
 };
