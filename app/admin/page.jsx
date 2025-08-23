@@ -6,6 +6,7 @@ import ServiceForm from "../../components/ServiceForm";
 import TherapistForm from "../../components/TherapistForm";
 import ContactForm from "../../components/ContactForm";
 import { useAuth } from "../../contexts/AuthContext";
+import { useToast } from "../../contexts/ToastContext";
 import {
   FaPlus,
   FaEdit,
@@ -50,7 +51,7 @@ const EnhancedLoginForm = ({ onLogin }) => {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        onLogin();
+        await onLogin();
       } else {
         setError(data.message || "Login failed");
       }
@@ -167,6 +168,7 @@ const AdminPanel = () => {
     logout,
     user,
   } = useAuth();
+  const toast = useToast();
 
   // Fallback: if auth loading stalls for more than 3s, allow showing login
   const [authStale, setAuthStale] = useState(false);
@@ -202,7 +204,6 @@ const AdminPanel = () => {
 
       const contentType = response.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
-        console.error("Services API returned non-JSON response");
         setServices([]);
         return;
       }
@@ -211,11 +212,9 @@ const AdminPanel = () => {
       if (data.success) {
         setServices(data.data || []);
       } else {
-        console.error("Services API error:", data.error);
         setServices([]);
       }
     } catch (error) {
-      console.error("Error loading services:", error);
       setServices([]);
     }
   }, []);
@@ -230,7 +229,6 @@ const AdminPanel = () => {
 
       const contentType = response.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
-        console.error("Therapists API returned non-JSON response");
         setTherapists([]);
         return;
       }
@@ -239,11 +237,9 @@ const AdminPanel = () => {
       if (data.success) {
         setTherapists(data.data || []);
       } else {
-        console.error("Therapists API error:", data.error);
         setTherapists([]);
       }
     } catch (error) {
-      console.error("Error loading therapists:", error);
       setTherapists([]);
     }
   }, []);
@@ -258,7 +254,6 @@ const AdminPanel = () => {
 
       const contentType = response.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
-        console.error("Contacts API returned non-JSON response");
         setContacts([]);
         return;
       }
@@ -267,11 +262,9 @@ const AdminPanel = () => {
       if (data.success) {
         setContacts(data.data || []);
       } else {
-        console.error("API error:", data.error);
         setContacts([]);
       }
     } catch (error) {
-      console.error("Error loading contacts:", error);
       setContacts([]);
     }
   }, []);
@@ -280,8 +273,6 @@ const AdminPanel = () => {
     try {
       setLoading(true);
       await Promise.all([loadServices(), loadTherapists(), loadContacts()]);
-    } catch (error) {
-      console.error("Error loading data:", error);
     } finally {
       setLoading(false);
     }
@@ -293,18 +284,8 @@ const AdminPanel = () => {
     }
   }, [isAuthenticated, authLoading, loadAllData]);
 
-  console.log(
-    "AdminPanel render - isAuthenticated:",
-    isAuthenticated,
-    "authLoading:",
-    authLoading,
-    "authStale:",
-    authStale
-  );
-
   // Show loading screen while checking authentication, unless it has stalled
   if (authLoading && !authStale) {
-    console.log("Showing loading screen");
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brown-200 to-brown-300">
         <div className="flex flex-col items-center space-y-4">
@@ -319,11 +300,8 @@ const AdminPanel = () => {
 
   // Show login form if not authenticated (either auth completed or stalled)
   if (!isAuthenticated) {
-    console.log("Showing login form");
     return <EnhancedLoginForm onLogin={login} />;
   }
-
-  console.log("Showing admin panel");
 
   const saveService = async (serviceData) => {
     try {
@@ -331,6 +309,7 @@ const AdminPanel = () => {
         const response = await fetch(`/api/services/${serviceData._id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify(serviceData),
         });
         const data = await response.json();
@@ -338,23 +317,25 @@ const AdminPanel = () => {
           setServices(
             services.map((s) => (s._id === serviceData._id ? data.data : s))
           );
+          toast.success("Service updated");
         }
       } else {
         const response = await fetch("/api/services", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify(serviceData),
         });
         const data = await response.json();
         if (data.success) {
           setServices([...services, data.data]);
+          toast.success("Service created");
         }
       }
       setEditingService(null);
       setShowServiceForm(false);
     } catch (error) {
-      console.error("Error saving service:", error);
-      alert("Failed to save service");
+      toast.error("Failed to save service");
     }
   };
 
@@ -363,14 +344,15 @@ const AdminPanel = () => {
       try {
         const response = await fetch(`/api/services/${id}`, {
           method: "DELETE",
+          credentials: "include",
         });
         const data = await response.json();
         if (data.success) {
           setServices(services.filter((s) => s._id !== id));
+          toast.success("Service deleted");
         }
       } catch (error) {
-        console.error("Error deleting service:", error);
-        alert("Failed to delete service");
+        toast.error("Failed to delete service");
       }
     }
   };
@@ -382,6 +364,7 @@ const AdminPanel = () => {
         const response = await fetch(`/api/therapists/${therapistData._id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify(therapistData),
         });
         const data = await response.json();
@@ -389,23 +372,25 @@ const AdminPanel = () => {
           setTherapists(
             therapists.map((t) => (t._id === therapistData._id ? data.data : t))
           );
+          toast.success("Therapist updated");
         }
       } else {
         const response = await fetch("/api/therapists", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify(therapistData),
         });
         const data = await response.json();
         if (data.success) {
           setTherapists([...therapists, data.data]);
+          toast.success("Therapist created");
         }
       }
       setEditingTherapist(null);
       setShowTherapistForm(false);
     } catch (error) {
-      console.error("Error saving therapist:", error);
-      alert("Failed to save therapist");
+      toast.error("Failed to save therapist");
     }
   };
 
@@ -414,14 +399,15 @@ const AdminPanel = () => {
       try {
         const response = await fetch(`/api/therapists/${id}`, {
           method: "DELETE",
+          credentials: "include",
         });
         const data = await response.json();
         if (data.success) {
           setTherapists(therapists.filter((t) => t._id !== id));
+          toast.success("Therapist deleted");
         }
       } catch (error) {
-        console.error("Error deleting therapist:", error);
-        alert("Failed to delete therapist");
+        toast.error("Failed to delete therapist");
       }
     }
   };
@@ -432,15 +418,16 @@ const AdminPanel = () => {
       const response = await fetch(`/api/therapists/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ ...therapist, isActive: !therapist.isActive }),
       });
       const data = await response.json();
       if (data.success) {
         setTherapists(therapists.map((t) => (t._id === id ? data.data : t)));
+        toast.success("Therapist visibility updated");
       }
     } catch (error) {
-      console.error("Error updating therapist status:", error);
-      alert("Failed to update therapist status");
+      toast.error("Failed to update therapist status");
     }
   };
 
@@ -451,15 +438,16 @@ const AdminPanel = () => {
       const response = await fetch(`/api/therapists/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ ...therapist, gender: newGender }),
       });
       const data = await response.json();
       if (data.success) {
         setTherapists(therapists.map((t) => (t._id === id ? data.data : t)));
+        toast.success("Therapist gender updated");
       }
     } catch (error) {
-      console.error("Error updating therapist gender:", error);
-      alert("Failed to update therapist gender");
+      toast.error("Failed to update therapist gender");
     }
   };
 
@@ -470,6 +458,7 @@ const AdminPanel = () => {
         const response = await fetch(`/api/contacts/${contactData._id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify(contactData),
         });
         const data = await response.json();
@@ -477,23 +466,25 @@ const AdminPanel = () => {
           setContacts(
             contacts.map((c) => (c._id === contactData._id ? data.data : c))
           );
+          toast.success("Contact updated");
         }
       } else {
         const response = await fetch("/api/contacts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify(contactData),
         });
         const data = await response.json();
         if (data.success) {
           setContacts([...contacts, data.data]);
+          toast.success("Contact created");
         }
       }
       setEditingContact(null);
       setShowContactForm(false);
     } catch (error) {
-      console.error("Error saving contact:", error);
-      alert("Failed to save contact");
+      toast.error("Failed to save contact");
     }
   };
 
@@ -502,14 +493,15 @@ const AdminPanel = () => {
       try {
         const response = await fetch(`/api/contacts/${id}`, {
           method: "DELETE",
+          credentials: "include",
         });
         const data = await response.json();
         if (data.success) {
           setContacts(contacts.filter((c) => c._id !== id));
+          toast.success("Contact deleted");
         }
       } catch (error) {
-        console.error("Error deleting contact:", error);
-        alert("Failed to delete contact");
+        toast.error("Failed to delete contact");
       }
     }
   };
@@ -520,15 +512,16 @@ const AdminPanel = () => {
       const response = await fetch(`/api/contacts/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ ...contact, isActive: !contact.isActive }),
       });
       const data = await response.json();
       if (data.success) {
         setContacts(contacts.map((c) => (c._id === id ? data.data : c)));
+        toast.success("Contact visibility updated");
       }
     } catch (error) {
-      console.error("Error updating contact status:", error);
-      alert("Failed to update contact status");
+      toast.error("Failed to update contact status");
     }
   };
 

@@ -14,12 +14,14 @@ export async function GET() {
       const dbStart = Date.now();
       const mongoose = await connectDB();
       dbConnectionTime = Date.now() - dbStart;
-      
+
       // Check connection state properly - mongoose.connection.readyState
       const connectionState = mongoose.connection.readyState;
       dbStatus = connectionState === 1 ? "connected" : "disconnected";
-      
-      console.log(`Database connection test: ${dbStatus} (${dbConnectionTime}ms), readyState: ${connectionState}`);
+
+      console.log(
+        `Database connection test: ${dbStatus} (${dbConnectionTime}ms), readyState: ${connectionState}`
+      );
     } catch (error) {
       dbStatus = "error";
       dbError = error.message;

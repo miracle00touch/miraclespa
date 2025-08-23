@@ -1,14 +1,25 @@
 import connectDB from "@/lib/mongodb";
 import Contact from "@/models/Contact";
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
 
 // PUT - Update a contact
-export async function PUT(request, { params }) {
+export const PUT = requireAuth(async function (request, { params }) {
   try {
     await connectDB();
 
     const { id } = await params;
     const body = await request.json();
+    // If setting a phone or whatsapp to active, ensure it's the only active one
+    if (body.isActive && (body.type === "phone" || body.type === "whatsapp")) {
+      await Contact.updateMany(
+        { type: body.type, _id: { $ne: id } },
+        { $set: { isActive: false } }
+      );
+    }
+    // Add audit trail
+    body.lastModifiedBy = request.user?.username || "unknown";
+    body.lastModifiedAt = new Date();
     const contact = await Contact.findByIdAndUpdate(id, body, {
       new: true,
       runValidators: true,
@@ -28,10 +39,10 @@ export async function PUT(request, { params }) {
       { status: 400 }
     );
   }
-}
+});
 
 // DELETE - Delete a contact
-export async function DELETE(request, { params }) {
+export const DELETE = requireAuth(async function (request, { params }) {
   try {
     await connectDB();
 
@@ -52,4 +63,4 @@ export async function DELETE(request, { params }) {
       { status: 500 }
     );
   }
-}
+});

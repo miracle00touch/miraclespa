@@ -2,11 +2,12 @@ import connectDB from "@/lib/mongodb";
 import Service from "@/models/Service";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { servicesCache, invalidateServicesCache } from "@/lib/cache";
 
-// Per-instance cache to avoid hitting DB on repeated requests
+// Request deduplication and caching
+let pendingPromise = null;
 let cachedServices = null;
 let cacheTs = 0;
-let pendingPromise = null;
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const CACHE_CONTROL_HEADER = "public, s-maxage=300, stale-while-revalidate=60";
 
@@ -203,8 +204,8 @@ export const POST = requireAuth(async function (request) {
     const service = await Service.create(body);
 
     // Clear cache when new service is added
-    cachedServices = null;
-    cacheTs = 0;
+    // Invalidate cache after successful creation
+    invalidateServicesCache();
 
     return NextResponse.json({ success: true, data: service }, { status: 201 });
   } catch (error) {

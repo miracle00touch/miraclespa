@@ -2,6 +2,7 @@ import connectDB from "@/lib/mongodb";
 import Therapist from "@/models/Therapist";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { invalidateTherapistsCache } from "@/lib/cache";
 
 // GET - Fetch a single therapist (public)
 export async function GET(request, { params }) {
@@ -51,6 +52,9 @@ export const PUT = requireAuth(async function (request, { params }) {
       );
     }
 
+    // Invalidate cache after successful update
+    invalidateTherapistsCache();
+
     return NextResponse.json({ success: true, data: therapist });
   } catch (error) {
     return NextResponse.json(
@@ -79,6 +83,9 @@ export const DELETE = requireAuth(async function (request, { params }) {
     console.log(
       `Therapist deleted by ${request.user.username}: ${therapist.name} (ID: ${id})`
     );
+
+    // Invalidate cache after successful deletion
+    invalidateTherapistsCache();
 
     return NextResponse.json({ success: true, data: {} });
   } catch (error) {

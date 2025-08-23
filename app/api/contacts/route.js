@@ -12,16 +12,10 @@ const CACHE_CONTROL_HEADER = "public, s-maxage=300, stale-while-revalidate=60";
 
 // GET - Fetch all contacts (public - for displaying contact info)
 export async function GET() {
-  const requestId = Math.random().toString(36).substr(2, 9);
-  console.log(`GET /api/contacts [${requestId}] - Starting request`);
-
   // Return cached response quickly when fresh
   try {
     const now = Date.now();
     if (cachedContacts && now - cacheTs < CACHE_TTL) {
-      console.log(
-        `[${requestId}] Returning cached contacts (age=${now - cacheTs}ms)`
-      );
       return NextResponse.json(
         { success: true, data: cachedContacts, cached: true },
         { headers: { "Cache-Control": CACHE_CONTROL_HEADER } }
@@ -29,7 +23,6 @@ export async function GET() {
     }
   } catch (cacheErr) {
     // ignore cache read errors and continue to fetch
-    console.error(`[${requestId}] Cache check failed:`, cacheErr.message);
   }
 
   try {
@@ -43,16 +36,10 @@ export async function GET() {
     );
 
     const dbOperation = async () => {
-      console.log(`[${requestId}] Attempting database connection...`);
       await connectDB();
-      console.log(`[${requestId}] Database connected, running query...`);
-
       const contacts = await Contact.find({ isActive: true }).sort({
         order: 1,
       });
-      console.log(
-        `[${requestId}] Database query successful, found ${contacts.length} contacts`
-      );
       return contacts;
     };
 
@@ -63,7 +50,7 @@ export async function GET() {
         cachedContacts = contacts;
         cacheTs = Date.now();
       } catch (err) {
-        console.error(`[${requestId}] Failed to write cache:`, err.message);
+        // ignore cache write errors
       }
 
       return NextResponse.json(
@@ -71,9 +58,7 @@ export async function GET() {
         { headers: { "Cache-Control": CACHE_CONTROL_HEADER } }
       );
     } catch (dbError) {
-      console.error("Database operation failed:", dbError.message);
-
-      // Return fallback contact data
+      // Return fallback contact data on DB error
       const fallbackContacts = [
         {
           _id: "fallback1",
@@ -95,13 +80,12 @@ export async function GET() {
         },
       ];
 
-      console.log(`Returning ${fallbackContacts.length} fallback contacts`);
       // also place fallback in cache for short period
       try {
         cachedContacts = fallbackContacts;
         cacheTs = Date.now();
       } catch (err) {
-        console.error(`Failed to write fallback to cache: ${err.message}`);
+        // ignore cache write errors
       }
 
       return NextResponse.json(
@@ -115,7 +99,6 @@ export async function GET() {
       );
     }
   } catch (error) {
-    console.error("GET /api/contacts - Unexpected error:", error.message);
     return NextResponse.json(
       { success: false, error: error.message, fallback: false },
       { status: 500, headers: { "Cache-Control": "no-store" } }
@@ -129,6 +112,14 @@ export const POST = requireAuth(async function (request) {
     await connectDB();
 
     const body = await request.json();
+
+    // If creating an active phone or whatsapp, ensure it's the only active one
+    if (body.isActive && (body.type === "phone" || body.type === "whatsapp")) {
+      await Contact.updateMany(
+        { type: body.type },
+        { $set: { isActive: false } }
+      );
+    }
 
     // Add audit trail
     body.createdBy = request.user.username;

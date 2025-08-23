@@ -2,12 +2,10 @@ import connectDB from "@/lib/mongodb";
 import Therapist from "@/models/Therapist";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { therapistsCache, invalidateTherapistsCache } from "@/lib/cache";
 
-// Per-instance cache to avoid hitting DB on repeated requests
-let cachedTherapists = null;
-let cacheTs = 0;
+// Request deduplication
 let pendingPromise = null;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const CACHE_CONTROL_HEADER = "public, s-maxage=300, stale-while-revalidate=60";
 
 // GET - Fetch all therapists or filter by gender (public)
@@ -25,12 +23,14 @@ export async function GET(request) {
     );
 
     // Check cache first
-    const now = Date.now();
-    if (cachedTherapists && now - cacheTs < CACHE_TTL) {
+    const cachedData = therapistsCache.get();
+    if (cachedData) {
+      const cacheInfo = therapistsCache.getInfo();
       console.log(
-        `[${requestId}] Returning cached therapists (age=${now - cacheTs}ms)`
+        `[${requestId}] Returning cached therapists (age=${cacheInfo.age}ms)`
       );
-      let filteredTherapists = cachedTherapists;
+
+      let filteredTherapists = cachedData;
       if (gender)
         filteredTherapists = filteredTherapists.filter(
           (t) => t.gender === gender
@@ -76,11 +76,13 @@ export async function GET(request) {
       console.log(`[${requestId}] Environment check:`, {
         hasMongoUri: !!process.env.MONGODB_URI,
         nodeEnv: process.env.NODE_ENV,
-        isVercel: !!process.env.VERCEL
+        isVercel: !!process.env.VERCEL,
       });
-      
+
       await connectDB();
-      console.log(`[${requestId}] Database connected successfully, running query...`);
+      console.log(
+        `[${requestId}] Database connected successfully, running query...`
+      );
 
       let query = {};
       if (gender) query.gender = gender;
@@ -100,8 +102,7 @@ export async function GET(request) {
       try {
         const therapists = await Promise.race([dbOperation(), timeoutPromise]);
         // Cache the full result
-        cachedTherapists = therapists;
-        cacheTs = Date.now();
+        therapistsCache.set(therapists);
         return therapists;
       } finally {
         pendingPromise = null;
@@ -128,15 +129,12 @@ export async function GET(request) {
         { headers: { "Cache-Control": CACHE_CONTROL_HEADER } }
       );
     } catch (dbError) {
-      console.error(
-        `[${requestId}] Database operation failed:`,
-        {
-          error: dbError.message,
-          code: dbError.code,
-          name: dbError.name,
-          stack: dbError.stack?.split('\n').slice(0, 3).join('\n'), // First 3 lines of stack
-        }
-      );
+      console.error(`[${requestId}] Database operation failed:`, {
+        error: dbError.message,
+        code: dbError.code,
+        name: dbError.name,
+        stack: dbError.stack?.split("\n").slice(0, 3).join("\n"), // First 3 lines of stack
+      });
 
       // Return fallback data if database fails
       console.log(`[${requestId}] Using fallback data due to database error`);
@@ -216,8 +214,7 @@ export async function GET(request) {
       }
 
       // Cache fallback data temporarily
-      cachedTherapists = fallbackTherapists;
-      cacheTs = Date.now();
+      therapistsCache.set(fallbackTherapists);
 
       console.log(
         `[${requestId}] Returning ${filteredTherapists.length} fallback therapists`
@@ -258,8 +255,8 @@ export const POST = requireAuth(async function (request) {
     const therapist = await Therapist.create(body);
 
     // Clear cache when new therapist is added
-    cachedTherapists = null;
-    cacheTs = 0;
+    // Invalidate cache after successful creation
+    invalidateTherapistsCache();
 
     return NextResponse.json(
       { success: true, data: therapist },

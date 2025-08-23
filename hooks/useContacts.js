@@ -9,7 +9,7 @@ const CACHE_KEY = "miracle_contacts_cache_v1";
 let contactsCache = null;
 let cacheTs = 0;
 let pendingPromise = null;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL = 2 * 60 * 1000; // Reduced to 2 minutes for admin responsiveness
 
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 
@@ -216,6 +216,19 @@ export const useContacts = (options = { autoFetch: true }) => {
     return addressContact ? addressContact.value : null;
   };
 
+  // Function to manually invalidate cache (useful for admin operations)
+  const invalidateCache = () => {
+    contactsCache = null;
+    cacheTs = 0;
+    pendingPromise = null;
+    try {
+      sessionStorage.removeItem(CACHE_KEY);
+    } catch (e) {
+      // ignore storage errors
+    }
+    console.log("Contacts cache invalidated manually");
+  };
+
   return {
     contacts,
     loading,
@@ -231,5 +244,7 @@ export const useContacts = (options = { autoFetch: true }) => {
     getAddress,
     // allow consumers to trigger fetch manually when they opted out of autoFetch
     fetchContacts,
+    // allow consumers to invalidate cache manually
+    invalidateCache,
   };
 };

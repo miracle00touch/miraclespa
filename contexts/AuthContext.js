@@ -58,9 +58,11 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const login = () => {
-    setIsAuthenticated(true);
-    checkAuthStatus(); // Refresh user data
+  const login = async () => {
+    // After a successful login request, refresh auth status from server.
+    // Do not set isAuthenticated optimistically here to avoid UI showing
+    // admin before the server-side cookie is verified.
+    await checkAuthStatus(); // Refresh user data
   };
 
   const logout = async () => {

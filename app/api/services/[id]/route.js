@@ -2,6 +2,7 @@ import connectDB from "@/lib/mongodb";
 import Service from "@/models/Service";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { invalidateServicesCache } from "@/lib/cache";
 
 // PUT - Update a service (requires authentication)
 export const PUT = requireAuth(async function (request, { params }) {
@@ -26,6 +27,9 @@ export const PUT = requireAuth(async function (request, { params }) {
         { status: 404 }
       );
     }
+
+    // Invalidate cache after successful update
+    invalidateServicesCache();
 
     return NextResponse.json({ success: true, data: service });
   } catch (error) {
@@ -55,6 +59,9 @@ export const DELETE = requireAuth(async function (request, { params }) {
     console.log(
       `Service deleted by ${request.user.username}: ${service.title} (ID: ${id})`
     );
+
+    // Invalidate cache after successful deletion
+    invalidateServicesCache();
 
     return NextResponse.json({ success: true, data: {} });
   } catch (error) {
