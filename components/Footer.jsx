@@ -1,7 +1,15 @@
+"use client";
+
 import React from "react";
 import { FaFacebook, FaEnvelope, FaPhoneAlt } from "react-icons/fa";
+import { useContacts } from "../hooks/useContacts";
 
 const Footer = () => {
+  const { getPrimaryPhone, getPrimaryEmail, loading, error } = useContacts();
+
+  // Fallback values if data is not available
+  const phoneNumber = getPrimaryPhone() || "+639274736260";
+  const emailAddress = getPrimaryEmail() || "miracletouchspa2@gmail.com";
   return (
     <footer
       className="bg-gradient-to-r from-brown-800 to-brown-600 text-beige-200 py-10"
@@ -21,21 +29,21 @@ const Footer = () => {
           <p className="flex items-center">
             <FaEnvelope className="mr-2" aria-hidden="true" />
             <a
-              href="mailto:miracletouchspa2@gmail.com"
+              href={`mailto:${emailAddress}`}
               className="underline hover:text-beige-100 transition"
               aria-label="Email Miracle Touch Spa"
             >
-              miracletouchspa2@gmail.com
+              {emailAddress}
             </a>
           </p>
           <p className="flex items-center">
             <FaPhoneAlt className="mr-2" aria-hidden="true" />
             <a
-              href="tel:+639274736260"
+              href={`tel:${phoneNumber.replace(/\s/g, "")}`}
               className="underline hover:text-beige-100 transition"
               aria-label="Call Miracle Touch Spa"
             >
-              (+63) 927 473 6260
+              {phoneNumber}
             </a>
           </p>
         </div>
@@ -56,7 +64,7 @@ const Footer = () => {
               <FaFacebook size={24} aria-hidden="true" />
             </a>
             <a
-              href="tel:+639123456789"
+              href={`tel:${phoneNumber.replace(/\s/g, "")}`}
               className="text-beige-200 hover:text-beige-100 transition"
               aria-label="Call Miracle Touch Spa Now"
             >
@@ -82,8 +90,8 @@ const Footer = () => {
           "@type": "LocalBusiness",
           "name": "Miracle Touch Spa",
           "description": "Relax and rejuvenate at Miracle Touch Spa. Contact us for home-service appointments.",
-          "telephone": "+639274736260",
-          "email": "miracletouchspa2@gmail.com",
+          "telephone": "${phoneNumber}",
+          "email": "${emailAddress}",
           "address": {
             "@type": "PostalAddress",
             "addressLocality": "Manila",

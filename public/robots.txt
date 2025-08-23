@@ -1,5 +1,22 @@
-# *
+# robots.txt for Miracle Touch Spa Manila
 User-agent: *
+Allow: /
+Allow: /services
+Allow: /contact
+Allow: /location
+Allow: /gallery
+Allow: /male
+Allow: /female
+
+# Block admin areas
+Disallow: /admin
+Disallow: /api/
+
+# Allow Google Ads crawlers
+User-agent: Googlebot
+Allow: /
+
+User-agent: AdsBot-Google
 Allow: /
 
 # Host

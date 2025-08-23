@@ -7,12 +7,18 @@
   --foreground: #171717;
 }
 
-@media (prefers-color-scheme: dark) {
+/* Force light mode for the spa theme */
+html {
+  color-scheme: light;
+}
+
+/* Remove dark mode to prevent black flash */
+/* @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
   }
-}
+} */
 html {
   scroll-behavior: smooth;
 }
@@ -21,6 +27,9 @@ body {
   color: var(--foreground);
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
+  /* Prevent flash of unstyled content */
+  opacity: 1;
+  transition: opacity 0.2s ease-in-out;
 }
 
 html,
@@ -55,4 +64,9 @@ body {
 
 .animate-fade-out {
   animation: fade-out 0.5s ease-in-out forwards;
+}
+
+/* Fix footer positioning */
+footer {
+  flex-shrink: 0;
 }

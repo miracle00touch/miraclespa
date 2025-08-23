@@ -1,8 +1,56 @@
-import React from "react";
+"use client";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
+import { useContacts } from "../../hooks/useContacts";
 
 const Services = () => {
-  const services = [
+  const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const {
+    getPrimaryPhone,
+    getPrimaryEmail,
+    loading: contactsLoading,
+  } = useContacts();
+
+  // Get contact info with fallbacks
+  const phoneNumber = getPrimaryPhone() || "+639274736260";
+  const emailAddress = getPrimaryEmail() || "miracletouchspa2@gmail.com";
+
+  // Load services from API
+  useEffect(() => {
+    loadServices();
+  }, []);
+
+  const loadServices = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("/api/services");
+      const data = await response.json();
+      if (data.success) {
+        // Sort services by category priority and order
+        const sortedServices = data.data.sort((a, b) => {
+          const categoryOrder = { sensual: 1, professional: 2, specialty: 3 };
+          if (categoryOrder[a.category] !== categoryOrder[b.category]) {
+            return categoryOrder[a.category] - categoryOrder[b.category];
+          }
+          return (a.order || 0) - (b.order || 0);
+        });
+        setServices(sortedServices);
+      } else {
+        setError("Failed to load services");
+      }
+    } catch (err) {
+      setError("Failed to load services");
+      console.error("Error loading services:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fallback services in case API fails
+  const fallbackServices = [
     {
       title: "Swedish Massage",
       description:
@@ -44,23 +92,92 @@ const Services = () => {
       image:
         "https://images.pexels.com/photos/6628700/pexels-photo-6628700.jpeg",
     },
+    {
+      title: "Nuru Massage",
+      description:
+        "Experience authentic Nuru massage with skilled therapists in Metro Manila. This intimate body-to-body massage uses special gel for ultimate sensual relaxation. Performed in a safe, private, and respectful environment with full attention to your comfort and boundaries.",
+      image:
+        "https://images.pexels.com/photos/3757948/pexels-photo-3757948.jpeg",
+    },
+    {
+      title: "Sensual Massage",
+      description:
+        "Indulge in our signature sensual massage services designed for deep intimate relaxation. Our trained therapists provide attentive care using gentle touches and sensual techniques in a private, comfortable setting. Perfect for stress relief and sensual awakening.",
+      image:
+        "https://images.pexels.com/photos/6560289/pexels-photo-6560289.jpeg",
+    },
   ];
+
+  // Show loading state
+  if (loading) {
+    return (
+      <section className="flex flex-col items-center justify-center min-h-screen bg-[#f3e7d1] p-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-brown-600 mx-auto mb-4"></div>
+          <p className="text-lg text-gray-700">
+            Loading our premium services...
+          </p>
+        </div>
+      </section>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <section className="flex flex-col items-center justify-center min-h-screen bg-[#f3e7d1] p-8">
+        <div className="text-center">
+          <p className="text-lg text-red-600 mb-4">
+            Failed to load services: {error}
+          </p>
+          <button
+            onClick={loadServices}
+            className="bg-brown-600 hover:bg-brown-700 text-white px-6 py-2 rounded-full font-semibold transition-colors duration-300"
+          >
+            Try Again
+          </button>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="flex flex-col items-center justify-center min-h-screen bg-[#f3e7d1] p-8">
-      <h1 className="text-4xl md:text-5xl font-semibold font-serif mb-10 text-brown-800">
-        Our Services
-      </h1>
+      <div className="text-center mb-10">
+        <h1 className="text-4xl md:text-5xl font-semibold font-serif mb-4 text-brown-800">
+          Sensual Massage Services in Metro Manila
+        </h1>
+        <p className="text-lg text-gray-700 max-w-3xl mx-auto mb-6">
+          Experience premium sensual spa treatments with skilled therapists.
+          Specializing in Nuru massage, sensual massage, and intimate wellness
+          services. Available for home service across Metro Manila.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <a
+            href={`tel:${phoneNumber.replace(/\s/g, "")}`}
+            className="bg-brown-600 hover:bg-brown-700 text-white px-8 py-3 rounded-full font-semibold transition-colors duration-300"
+          >
+            📞 Call Now: {phoneNumber}
+          </a>
+          <p className="text-sm text-gray-600">
+            Available 24/7 • Home Service Available
+          </p>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
         {services.map((service, index) => (
           <article
-            key={index}
+            key={service._id || index}
             className="bg-white rounded-lg shadow-lg overflow-hidden transition-transform transform hover:scale-105 hover:shadow-2xl"
           >
             <div className="relative w-full h-56 md:h-64">
               <Image
-                src={service.image}
+                src={
+                  service.image ||
+                  (service.images && service.images[0]) ||
+                  "https://images.pexels.com/photos/3757942/pexels-photo-3757942.jpeg"
+                }
                 alt={`${service.title} at Miracle Touch Spa in Metro Manila`}
                 fill
                 sizes="(max-width: 640px) 100vw,
@@ -72,11 +189,18 @@ const Services = () => {
             </div>
             <div className="p-6">
               <h3 className="text-xl md:text-2xl font-semibold text-brown-700 mb-2">
-                {service.title}
+                {service.name || service.title}
               </h3>
               <p className="text-sm md:text-base text-gray-700 leading-relaxed">
                 {service.description}
               </p>
+              {service.price && (
+                <div className="mt-3">
+                  <span className="text-lg font-semibold text-brown-600">
+                    ₱{service.price}
+                  </span>
+                </div>
+              )}
             </div>
           </article>
         ))}
@@ -88,25 +212,73 @@ const Services = () => {
         dangerouslySetInnerHTML={{
           __html: JSON.stringify({
             "@context": "https://schema.org",
-            "@type": "Service",
-            provider: {
-              "@type": "LocalBusiness",
-              name: "Miracle Touch Spa",
-              address: {
-                "@type": "PostalAddress",
-                addressLocality: "Metro Manila",
-                addressCountry: "Philippines",
-              },
-              telephone: "+63 927 473 6260",
+            "@type": "LocalBusiness",
+            "@id": "https://miracletouchspa.vercel.app/#business",
+            name: "Miracle Touch Spa",
+            alternateName: "Miracle Sensual Spa Manila",
+            description:
+              "Sensual massage and intimate spa services in Metro Manila with home service available. Specializing in Nuru massage, sensual massage, and body-to-body treatments.",
+            url: "https://miracletouchspa.vercel.app",
+            telephone: phoneNumber.replace(/[^\d+]/g, ""),
+            email: emailAddress,
+            address: {
+              "@type": "PostalAddress",
+              addressLocality: "Metro Manila",
+              addressRegion: "National Capital Region",
+              addressCountry: "Philippines",
             },
+            areaServed: [
+              {
+                "@type": "City",
+                name: "Quezon City",
+              },
+              {
+                "@type": "City",
+                name: "Makati City",
+              },
+              {
+                "@type": "City",
+                name: "Manila City",
+              },
+              {
+                "@type": "City",
+                name: "Taguig City",
+              },
+              {
+                "@type": "City",
+                name: "Pasay City",
+              },
+            ],
+            priceRange: "₱₱",
+            openingHours: "Mo-Su 00:00-23:59",
+            serviceType: "Home Service Available",
             hasOfferCatalog: {
               "@type": "OfferCatalog",
               name: "Massage and Spa Services",
-              itemListElement: services.map((service) => ({
-                "@type": "Offer",
-                name: service.title,
-                description: service.description,
-              })),
+              itemListElement: services
+                .filter((service) => service && (service.name || service.title))
+                .map((service, index) => {
+                  const serviceName = service.name || service.title;
+                  return {
+                    "@type": "Offer",
+                    "@id": `https://miracletouchspa.vercel.app/services#${serviceName
+                      .toLowerCase()
+                      .replace(/\s+/g, "-")}`,
+                    name: serviceName,
+                    description: service.description || "",
+                    category: "Massage Therapy",
+                    areaServed: "Metro Manila",
+                    availableAtOrFrom: {
+                      "@type": "Place",
+                      name: "Miracle Touch Spa",
+                    },
+                  };
+                }),
+            },
+            aggregateRating: {
+              "@type": "AggregateRating",
+              ratingValue: "4.8",
+              reviewCount: "150",
             },
           }),
         }}

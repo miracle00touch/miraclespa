@@ -27,8 +27,9 @@ const ServiceLocations = () => {
           <FaMapMarkerAlt className="text-brown-500 text-3xl mb-4" />
           <h3 className="text-xl font-semibold text-brown-800">Makati City</h3>
           <p className="text-gray-600">
-            Enjoy Miracle Touch Spa's massage services in Makati City, perfect
-            for home or hotel visits in the heart of the business district.
+            Enjoy Miracle Touch Spa&apos;s massage services in Makati City,
+            perfect for home or hotel visits in the heart of the business
+            district.
           </p>
         </div>
 

@@ -80,8 +80,11 @@ const NavBar = () => {
             <Link href="/" className={linkClasses("/")}>
               Home
             </Link>
-            <Link href="/gallery" className={linkClasses("/gallery")}>
-              Gallery
+            <Link href="/female" className={linkClasses("/female")}>
+              Photos: Female Attendants
+            </Link>
+            <Link href="/male" className={linkClasses("/male")}>
+              Photos: Male Attendants
             </Link>
             <Link href="/services" className={linkClasses("/services")}>
               Services
@@ -91,6 +94,14 @@ const NavBar = () => {
             </Link>
             <Link href="/contact" className={linkClasses("/contact")}>
               Contact
+            </Link>
+            {/* Book Now CTA */}
+            <Link
+              href="/contact"
+              aria-label="Book Now"
+              className="ml-4 hidden md:inline-flex items-center bg-brown-600 text-white px-4 py-2 rounded-full shadow hover:bg-brown-700 transition"
+            >
+              Book Now
             </Link>
           </div>
           <div className="md:hidden">
@@ -146,11 +157,18 @@ const NavBar = () => {
                 Home
               </Link>
               <Link
-                href="/gallery"
-                className={`${linkClasses("/gallery")} py-4`}
+                href="/female"
+                className={`${linkClasses("/female")} py-4`}
                 onClick={() => setIsOpen(false)}
               >
-                Gallery
+                Photos: Female Attendants
+              </Link>
+              <Link
+                href="/male"
+                className={`${linkClasses("/male")} py-4`}
+                onClick={() => setIsOpen(false)}
+              >
+                Photos: Male Attendants
               </Link>
               <Link
                 href="/services"
@@ -172,6 +190,15 @@ const NavBar = () => {
                 onClick={() => setIsOpen(false)}
               >
                 Contact
+              </Link>
+              {/* Mobile Book Now button */}
+              <Link
+                href="/contact"
+                onClick={() => setIsOpen(false)}
+                aria-label="Book Now"
+                className="w-full text-center bg-brown-600 text-white py-3 px-6 rounded-full"
+              >
+                Book Now
               </Link>
             </div>
           </div>

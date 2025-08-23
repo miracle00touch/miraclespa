@@ -1,0 +1,1156 @@
+"use client";
+
+import React, { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
+import ServiceForm from "../../components/ServiceForm";
+import TherapistForm from "../../components/TherapistForm";
+import ContactForm from "../../components/ContactForm";
+import { useAuth } from "../../contexts/AuthContext";
+import {
+  FaPlus,
+  FaEdit,
+  FaTrash,
+  FaUser,
+  FaPhone,
+  FaCog,
+  FaImages,
+  FaEye,
+  FaEyeSlash,
+  FaStar,
+  FaSignOutAlt,
+  FaLock,
+  FaShieldAlt,
+} from "react-icons/fa";
+
+// Enhanced Login Form Component
+const EnhancedLoginForm = ({ onLogin }) => {
+  const [credentials, setCredentials] = useState({
+    username: "",
+    password: "",
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(credentials),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        onLogin();
+      } else {
+        setError(data.message || "Login failed");
+      }
+    } catch (error) {
+      setError("An error occurred during login");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setCredentials((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brown-200 to-brown-300">
+      <div className="absolute inset-0 bg-brown-800/20"></div>
+      <div className="relative z-10 bg-white/90 backdrop-blur-lg p-8 rounded-2xl shadow-2xl w-full max-w-md border border-brown-200/30">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-brown-600 to-brown-700 rounded-full mb-4">
+            <FaShieldAlt className="text-white text-2xl" />
+          </div>
+          <h1 className="text-3xl font-bold text-brown-800 mb-2 font-playfair">
+            Miracle Touch Spa — Admin
+          </h1>
+          <p className="text-brown-600">
+            Relaxation Redefined — Admin access only
+          </p>
+        </div>
+
+        {error && (
+          <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-lg mb-6">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-brown-700 mb-2">
+              Username
+            </label>
+            <div className="relative">
+              <FaUser className="absolute left-3 top-4 text-brown-500" />
+              <input
+                type="text"
+                name="username"
+                value={credentials.username}
+                onChange={handleChange}
+                className="w-full pl-10 pr-4 py-3 bg-brown-50 border border-brown-200 rounded-lg text-brown-800 placeholder-brown-400 focus:outline-none focus:ring-2 focus:ring-brown-500 focus:border-brown-500 transition-all duration-200"
+                placeholder="Enter username"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-brown-700 mb-2">
+              Password
+            </label>
+            <div className="relative">
+              <FaLock className="absolute left-3 top-4 text-brown-500" />
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={credentials.password}
+                onChange={handleChange}
+                className="w-full pl-10 pr-12 py-3 bg-brown-50 border border-brown-200 rounded-lg text-brown-800 placeholder-brown-400 focus:outline-none focus:ring-2 focus:ring-brown-500 focus:border-brown-500 transition-all duration-200"
+                placeholder="Enter password"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-4 text-brown-500 hover:text-brown-700 transition-colors duration-200"
+              >
+                {showPassword ? <FaEyeSlash /> : <FaEye />}
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-brown-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-brown-700 focus:outline-none focus:ring-2 focus:ring-brown-500 focus:ring-offset-2 focus:ring-offset-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg"
+          >
+            {loading ? (
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                Authenticating...
+              </div>
+            ) : (
+              "Access Admin Panel"
+            )}
+          </button>
+        </form>
+
+        <div className="mt-6 text-center">
+          <p className="text-xs text-brown-500">Authorized personnel only</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const AdminPanel = () => {
+  const {
+    isAuthenticated,
+    loading: authLoading,
+    login,
+    logout,
+    user,
+  } = useAuth();
+
+  // Fallback: if auth loading stalls for more than 3s, allow showing login
+  const [authStale, setAuthStale] = useState(false);
+
+  useEffect(() => {
+    setAuthStale(false);
+    const t = setTimeout(() => setAuthStale(true), 3000);
+    return () => clearTimeout(t);
+  }, [authLoading]);
+
+  // All hooks must be at the top level, before any conditional returns
+  const [activeTab, setActiveTab] = useState("services");
+  const [services, setServices] = useState([]);
+  const [therapists, setTherapists] = useState([]);
+  const [contacts, setContacts] = useState([]);
+  const [editingService, setEditingService] = useState(null);
+  const [editingTherapist, setEditingTherapist] = useState(null);
+  const [editingContact, setEditingContact] = useState(null);
+  const [showServiceForm, setShowServiceForm] = useState(false);
+  const [showTherapistForm, setShowTherapistForm] = useState(false);
+  const [showContactForm, setShowContactForm] = useState(false);
+  const [genderFilter, setGenderFilter] = useState("all");
+  const [loading, setLoading] = useState(true);
+
+  // Load functions - defined at component level to avoid hook order issues
+  const loadServices = useCallback(async () => {
+    try {
+      const response = await fetch("/api/services");
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("Services API returned non-JSON response");
+        setServices([]);
+        return;
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        setServices(data.data || []);
+      } else {
+        console.error("Services API error:", data.error);
+        setServices([]);
+      }
+    } catch (error) {
+      console.error("Error loading services:", error);
+      setServices([]);
+    }
+  }, []);
+
+  const loadTherapists = useCallback(async () => {
+    try {
+      const response = await fetch("/api/therapists");
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("Therapists API returned non-JSON response");
+        setTherapists([]);
+        return;
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        setTherapists(data.data || []);
+      } else {
+        console.error("Therapists API error:", data.error);
+        setTherapists([]);
+      }
+    } catch (error) {
+      console.error("Error loading therapists:", error);
+      setTherapists([]);
+    }
+  }, []);
+
+  const loadContacts = useCallback(async () => {
+    try {
+      const response = await fetch("/api/contacts");
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("Contacts API returned non-JSON response");
+        setContacts([]);
+        return;
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        setContacts(data.data || []);
+      } else {
+        console.error("API error:", data.error);
+        setContacts([]);
+      }
+    } catch (error) {
+      console.error("Error loading contacts:", error);
+      setContacts([]);
+    }
+  }, []);
+
+  const loadAllData = useCallback(async () => {
+    try {
+      setLoading(true);
+      await Promise.all([loadServices(), loadTherapists(), loadContacts()]);
+    } catch (error) {
+      console.error("Error loading data:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [loadServices, loadTherapists, loadContacts]);
+
+  useEffect(() => {
+    if (isAuthenticated && !authLoading) {
+      loadAllData();
+    }
+  }, [isAuthenticated, authLoading, loadAllData]);
+
+  console.log(
+    "AdminPanel render - isAuthenticated:",
+    isAuthenticated,
+    "authLoading:",
+    authLoading,
+    "authStale:",
+    authStale
+  );
+
+  // Show loading screen while checking authentication, unless it has stalled
+  if (authLoading && !authStale) {
+    console.log("Showing loading screen");
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brown-200 to-brown-300">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brown-600"></div>
+          <p className="text-brown-700 font-medium">
+            Checking authentication...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login form if not authenticated (either auth completed or stalled)
+  if (!isAuthenticated) {
+    console.log("Showing login form");
+    return <EnhancedLoginForm onLogin={login} />;
+  }
+
+  console.log("Showing admin panel");
+
+  const saveService = async (serviceData) => {
+    try {
+      if (editingService) {
+        const response = await fetch(`/api/services/${serviceData._id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(serviceData),
+        });
+        const data = await response.json();
+        if (data.success) {
+          setServices(
+            services.map((s) => (s._id === serviceData._id ? data.data : s))
+          );
+        }
+      } else {
+        const response = await fetch("/api/services", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(serviceData),
+        });
+        const data = await response.json();
+        if (data.success) {
+          setServices([...services, data.data]);
+        }
+      }
+      setEditingService(null);
+      setShowServiceForm(false);
+    } catch (error) {
+      console.error("Error saving service:", error);
+      alert("Failed to save service");
+    }
+  };
+
+  const deleteService = async (id) => {
+    if (confirm("Are you sure you want to delete this service?")) {
+      try {
+        const response = await fetch(`/api/services/${id}`, {
+          method: "DELETE",
+        });
+        const data = await response.json();
+        if (data.success) {
+          setServices(services.filter((s) => s._id !== id));
+        }
+      } catch (error) {
+        console.error("Error deleting service:", error);
+        alert("Failed to delete service");
+      }
+    }
+  };
+
+  // Therapist CRUD functions
+  const saveTherapist = async (therapistData) => {
+    try {
+      if (editingTherapist) {
+        const response = await fetch(`/api/therapists/${therapistData._id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(therapistData),
+        });
+        const data = await response.json();
+        if (data.success) {
+          setTherapists(
+            therapists.map((t) => (t._id === therapistData._id ? data.data : t))
+          );
+        }
+      } else {
+        const response = await fetch("/api/therapists", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(therapistData),
+        });
+        const data = await response.json();
+        if (data.success) {
+          setTherapists([...therapists, data.data]);
+        }
+      }
+      setEditingTherapist(null);
+      setShowTherapistForm(false);
+    } catch (error) {
+      console.error("Error saving therapist:", error);
+      alert("Failed to save therapist");
+    }
+  };
+
+  const deleteTherapist = async (id) => {
+    if (confirm("Are you sure you want to delete this therapist?")) {
+      try {
+        const response = await fetch(`/api/therapists/${id}`, {
+          method: "DELETE",
+        });
+        const data = await response.json();
+        if (data.success) {
+          setTherapists(therapists.filter((t) => t._id !== id));
+        }
+      } catch (error) {
+        console.error("Error deleting therapist:", error);
+        alert("Failed to delete therapist");
+      }
+    }
+  };
+
+  const toggleTherapistStatus = async (id) => {
+    try {
+      const therapist = therapists.find((t) => t._id === id);
+      const response = await fetch(`/api/therapists/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...therapist, isActive: !therapist.isActive }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setTherapists(therapists.map((t) => (t._id === id ? data.data : t)));
+      }
+    } catch (error) {
+      console.error("Error updating therapist status:", error);
+      alert("Failed to update therapist status");
+    }
+  };
+
+  const updateTherapistGender = async (id, newGender) => {
+    try {
+      const therapist = therapists.find((t) => t._id === id);
+      if (!therapist) return;
+      const response = await fetch(`/api/therapists/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...therapist, gender: newGender }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setTherapists(therapists.map((t) => (t._id === id ? data.data : t)));
+      }
+    } catch (error) {
+      console.error("Error updating therapist gender:", error);
+      alert("Failed to update therapist gender");
+    }
+  };
+
+  // Contact CRUD functions
+  const saveContact = async (contactData) => {
+    try {
+      if (editingContact) {
+        const response = await fetch(`/api/contacts/${contactData._id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(contactData),
+        });
+        const data = await response.json();
+        if (data.success) {
+          setContacts(
+            contacts.map((c) => (c._id === contactData._id ? data.data : c))
+          );
+        }
+      } else {
+        const response = await fetch("/api/contacts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(contactData),
+        });
+        const data = await response.json();
+        if (data.success) {
+          setContacts([...contacts, data.data]);
+        }
+      }
+      setEditingContact(null);
+      setShowContactForm(false);
+    } catch (error) {
+      console.error("Error saving contact:", error);
+      alert("Failed to save contact");
+    }
+  };
+
+  const deleteContact = async (id) => {
+    if (confirm("Are you sure you want to delete this contact?")) {
+      try {
+        const response = await fetch(`/api/contacts/${id}`, {
+          method: "DELETE",
+        });
+        const data = await response.json();
+        if (data.success) {
+          setContacts(contacts.filter((c) => c._id !== id));
+        }
+      } catch (error) {
+        console.error("Error deleting contact:", error);
+        alert("Failed to delete contact");
+      }
+    }
+  };
+
+  const toggleContactStatus = async (id) => {
+    try {
+      const contact = contacts.find((c) => c._id === id);
+      const response = await fetch(`/api/contacts/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...contact, isActive: !contact.isActive }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setContacts(contacts.map((c) => (c._id === id ? data.data : c)));
+      }
+    } catch (error) {
+      console.error("Error updating contact status:", error);
+      alert("Failed to update contact status");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brown-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading admin panel...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+      {/* Enhanced Header */}
+      <div className="bg-white shadow-lg border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-6">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl">
+                <FaShieldAlt className="text-white text-xl" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  Admin Dashboard
+                </h1>
+                <span className="text-sm text-gray-500 font-medium">
+                  Miracle Touch Spa Management System
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center space-x-6">
+              <div className="flex items-center space-x-3 bg-gradient-to-r from-blue-50 to-purple-50 px-4 py-2 rounded-lg border border-blue-200">
+                <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full">
+                  <FaUser className="text-white text-sm" />
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-700">
+                    {user?.username || "Admin"}
+                  </span>
+                  <div className="text-xs text-gray-500">Administrator</div>
+                </div>
+              </div>
+              <button
+                onClick={logout}
+                className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              >
+                <FaSignOutAlt />
+                <span>Logout</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Enhanced Navigation Tabs */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 mb-8 overflow-hidden">
+          <nav className="flex">
+            <button
+              onClick={() => setActiveTab("therapists")}
+              className={`flex-1 flex items-center justify-center py-4 px-6 font-medium text-sm transition-all duration-200 ${
+                activeTab === "therapists"
+                  ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg"
+                  : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+              }`}
+            >
+              <FaUser className="mr-2" />
+              Therapists
+            </button>
+            <button
+              onClick={() => setActiveTab("services")}
+              className={`flex-1 flex items-center justify-center py-4 px-6 font-medium text-sm transition-all duration-200 ${
+                activeTab === "services"
+                  ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg"
+                  : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+              }`}
+            >
+              <FaCog className="mr-2" />
+              Services
+            </button>
+            <button
+              onClick={() => setActiveTab("contacts")}
+              className={`flex-1 flex items-center justify-center py-4 px-6 font-medium text-sm transition-all duration-200 ${
+                activeTab === "contacts"
+                  ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg"
+                  : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+              }`}
+            >
+              <FaPhone className="mr-2" />
+              Contacts
+            </button>
+          </nav>
+        </div>
+
+        {activeTab === "therapists" && (
+          <div>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">
+                Therapist Management
+              </h2>
+              <button
+                onClick={() => {
+                  setEditingTherapist(null);
+                  setShowTherapistForm(true);
+                }}
+                className="bg-brown-600 text-white px-4 py-2 rounded-md hover:bg-brown-700 flex items-center"
+              >
+                <FaPlus className="mr-2" />
+                Add New Therapist
+              </button>
+            </div>
+
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={() => setGenderFilter("all")}
+                  className={`px-4 py-2 rounded-full text-sm font-medium border ${
+                    genderFilter === "all"
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-white text-gray-700 border-gray-200"
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setGenderFilter("male")}
+                  className={`px-4 py-2 rounded-full text-sm font-medium border ${
+                    genderFilter === "male"
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-white text-gray-700 border-gray-200"
+                  }`}
+                >
+                  Male
+                </button>
+                <button
+                  onClick={() => setGenderFilter("female")}
+                  className={`px-4 py-2 rounded-full text-sm font-medium border ${
+                    genderFilter === "female"
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-white text-gray-700 border-gray-200"
+                  }`}
+                >
+                  Female
+                </button>
+              </div>
+              <div className="text-sm text-gray-500">
+                Showing: {genderFilter}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {therapists
+                .filter((t) =>
+                  genderFilter === "all"
+                    ? true
+                    : (t.gender || "").toLowerCase() === genderFilter
+                )
+                .map((therapist) => (
+                  <div
+                    key={therapist._id}
+                    className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+                  >
+                    <div className="relative h-48 bg-gray-200">
+                      {therapist.images && therapist.images.length > 0 ? (
+                        <Image
+                          src={therapist.images[0]}
+                          alt={therapist.name}
+                          fill
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-gray-400">
+                          <FaUser size={48} />
+                        </div>
+                      )}
+                      <div className="absolute top-2 right-2">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            therapist.isActive
+                              ? "bg-green-100 text-green-800"
+                              : "bg-red-100 text-red-800"
+                          }`}
+                        >
+                          {therapist.isActive ? "Active" : "Inactive"}
+                        </span>
+                      </div>
+                      <div className="absolute top-2 left-2">
+                        <div className="flex items-center bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs">
+                          <FaStar className="mr-1" size={10} />
+                          {therapist.rating || 5.0}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-4">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                        {therapist.name}
+                      </h3>
+                      <p className="text-sm text-gray-600 mb-2">
+                        {therapist.gender} •{" "}
+                        {therapist.age
+                          ? `${therapist.age} years old`
+                          : "Age not specified"}{" "}
+                        • {therapist.experience}
+                      </p>
+                      <p className="text-sm text-gray-600 mb-2">
+                        📍 {therapist.location}
+                      </p>
+                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                        {therapist.description}
+                      </p>
+
+                      {therapist.specialties &&
+                        therapist.specialties.length > 0 && (
+                          <div className="mb-3">
+                            <div className="flex flex-wrap gap-1">
+                              {therapist.specialties
+                                .slice(0, 3)
+                                .map((specialty, index) => (
+                                  <span
+                                    key={index}
+                                    className="text-xs bg-brown-100 text-brown-700 px-2 py-1 rounded-full"
+                                  >
+                                    {specialty}
+                                  </span>
+                                ))}
+                              {therapist.specialties.length > 3 && (
+                                <span className="text-xs text-gray-500">
+                                  +{therapist.specialties.length - 3} more
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-semibold text-brown-600">
+                          {therapist.price || "Price not set"}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {therapist.images ? therapist.images.length : 0}{" "}
+                          photos
+                        </span>
+                      </div>
+
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => {
+                            setEditingTherapist(therapist);
+                            setShowTherapistForm(true);
+                          }}
+                          className="flex-1 bg-brown-600 text-white px-3 py-2 rounded-md hover:bg-brown-700 flex items-center justify-center text-sm"
+                        >
+                          <FaEdit className="mr-1" size={12} />
+                          Edit
+                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            title="Mark as Male"
+                            onClick={() =>
+                              updateTherapistGender(therapist._id, "male")
+                            }
+                            className="px-3 py-1 bg-blue-50 text-blue-800 border border-blue-100 rounded-md text-sm hover:bg-blue-100"
+                          >
+                            Male
+                          </button>
+                          <button
+                            title="Mark as Female"
+                            onClick={() =>
+                              updateTherapistGender(therapist._id, "female")
+                            }
+                            className="px-3 py-1 bg-pink-50 text-pink-800 border border-pink-100 rounded-md text-sm hover:bg-pink-100"
+                          >
+                            Female
+                          </button>
+                        </div>
+                        <button
+                          onClick={() => toggleTherapistStatus(therapist._id)}
+                          className={`flex-1 px-3 py-2 rounded-md text-sm flex items-center justify-center ${
+                            therapist.isActive
+                              ? "bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
+                              : "bg-green-100 text-green-700 hover:bg-green-200"
+                          }`}
+                        >
+                          {therapist.isActive ? (
+                            <>
+                              <FaEyeSlash className="mr-1" size={12} />
+                              Hide
+                            </>
+                          ) : (
+                            <>
+                              <FaEye className="mr-1" size={12} />
+                              Show
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => deleteTherapist(therapist._id)}
+                          className="px-3 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 flex items-center justify-center"
+                        >
+                          <FaTrash size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+              {/* Empty State */}
+              {therapists.length === 0 && (
+                <div className="col-span-full text-center py-12">
+                  <FaUser className="mx-auto text-gray-400 mb-4" size={48} />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    No therapists yet
+                  </h3>
+                  <p className="text-gray-500 mb-4">
+                    Add your first therapist with image upload capability.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setEditingTherapist(null);
+                      setShowTherapistForm(true);
+                    }}
+                    className="bg-brown-600 text-white px-4 py-2 rounded-md hover:bg-brown-700"
+                  >
+                    Add First Therapist
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "services" && (
+          <div>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">
+                Services Management
+              </h2>
+              <button
+                onClick={() => {
+                  setEditingService(null);
+                  setShowServiceForm(true);
+                }}
+                className="bg-brown-600 text-white px-4 py-2 rounded-md hover:bg-brown-700 flex items-center"
+              >
+                <FaPlus className="mr-2" />
+                Add New Service
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {services.map((service) => (
+                <div
+                  key={service._id}
+                  className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+                >
+                  <div className="relative h-48 bg-gray-200">
+                    {service.images && service.images.length > 0 ? (
+                      <Image
+                        src={service.images[0]}
+                        alt={service.name}
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-gray-400">
+                        <FaImages size={48} />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      {service.name}
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                      {service.description}
+                    </p>
+
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs bg-brown-100 text-brown-700 px-2 py-1 rounded-full">
+                        {service.category}
+                      </span>
+                      {service.price && (
+                        <span className="text-sm font-semibold text-brown-600">
+                          {service.price}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => {
+                          setEditingService(service);
+                          setShowServiceForm(true);
+                        }}
+                        className="flex-1 bg-brown-600 text-white px-3 py-2 rounded-md hover:bg-brown-700 flex items-center justify-center text-sm"
+                      >
+                        <FaEdit className="mr-1" size={12} />
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => deleteService(service._id)}
+                        className="px-3 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 flex items-center justify-center"
+                      >
+                        <FaTrash size={12} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {services.length === 0 && (
+                <div className="col-span-full text-center py-12">
+                  <FaImages className="mx-auto text-gray-400 mb-4" size={48} />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    No services yet
+                  </h3>
+                  <p className="text-gray-500 mb-4">
+                    Add your first service with image upload capability.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setEditingService(null);
+                      setShowServiceForm(true);
+                    }}
+                    className="bg-brown-600 text-white px-4 py-2 rounded-md hover:bg-brown-700"
+                  >
+                    Add First Service
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "contacts" && (
+          <div>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">
+                Contact Management
+              </h2>
+              <button
+                onClick={() => {
+                  setEditingContact(null);
+                  setShowContactForm(true);
+                }}
+                className="bg-brown-600 text-white px-4 py-2 rounded-md hover:bg-brown-700 flex items-center"
+              >
+                <FaPlus className="mr-2" />
+                Add New Contact
+              </button>
+            </div>
+
+            <div className="bg-white shadow rounded-lg overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Contact Information ({contacts.length} items)
+                </h3>
+              </div>
+
+              <div className="divide-y divide-gray-200">
+                {contacts.map((contact) => (
+                  <div
+                    key={contact._id}
+                    className="px-6 py-4 flex items-center justify-between hover:bg-gray-50"
+                  >
+                    <div className="flex items-center space-x-4">
+                      <div
+                        className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                          contact.type === "phone"
+                            ? "bg-blue-100 text-blue-600"
+                            : contact.type === "whatsapp"
+                            ? "bg-green-100 text-green-600"
+                            : contact.type === "viber"
+                            ? "bg-purple-100 text-purple-600"
+                            : contact.type === "wechat"
+                            ? "bg-green-100 text-green-600"
+                            : contact.type === "telegram"
+                            ? "bg-blue-100 text-blue-600"
+                            : contact.type === "email"
+                            ? "bg-red-100 text-red-600"
+                            : "bg-gray-100 text-gray-600"
+                        }`}
+                      >
+                        <FaPhone size={16} />
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {contact.label}
+                          </p>
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              contact.isActive
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
+                            }`}
+                          >
+                            {contact.isActive ? "Active" : "Inactive"}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center space-x-4 mt-1">
+                          <p className="text-sm text-gray-600 truncate">
+                            {contact.value}
+                          </p>
+                          <span className="text-xs text-gray-400 uppercase">
+                            {contact.type}
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            Order: {contact.order}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => {
+                          setEditingContact(contact);
+                          setShowContactForm(true);
+                        }}
+                        className="text-brown-600 hover:text-brown-700 p-2"
+                        title="Edit Contact"
+                      >
+                        <FaEdit size={14} />
+                      </button>
+                      <button
+                        onClick={() => toggleContactStatus(contact._id)}
+                        className={`p-2 ${
+                          contact.isActive
+                            ? "text-yellow-600 hover:text-yellow-700"
+                            : "text-green-600 hover:text-green-700"
+                        }`}
+                        title={
+                          contact.isActive ? "Hide Contact" : "Show Contact"
+                        }
+                      >
+                        {contact.isActive ? (
+                          <FaEyeSlash size={14} />
+                        ) : (
+                          <FaEye size={14} />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => deleteContact(contact._id)}
+                        className="text-red-600 hover:text-red-700 p-2"
+                        title="Delete Contact"
+                      >
+                        <FaTrash size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Empty State */}
+                {contacts.length === 0 && (
+                  <div className="px-6 py-12 text-center">
+                    <FaPhone className="mx-auto text-gray-400 mb-4" size={48} />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      No contacts yet
+                    </h3>
+                    <p className="text-gray-500 mb-4">
+                      Add your first contact information to help customers reach
+                      you.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setEditingContact(null);
+                        setShowContactForm(true);
+                      }}
+                      className="bg-brown-600 text-white px-4 py-2 rounded-md hover:bg-brown-700"
+                    >
+                      Add First Contact
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {showServiceForm && (
+        <ServiceForm
+          service={editingService}
+          onSave={saveService}
+          onCancel={() => {
+            setShowServiceForm(false);
+            setEditingService(null);
+          }}
+        />
+      )}
+
+      {showTherapistForm && (
+        <TherapistForm
+          therapist={editingTherapist}
+          onSave={saveTherapist}
+          onCancel={() => {
+            setShowTherapistForm(false);
+            setEditingTherapist(null);
+          }}
+        />
+      )}
+
+      {showContactForm && (
+        <ContactForm
+          contact={editingContact}
+          onSave={saveContact}
+          onCancel={() => {
+            setShowContactForm(false);
+            setEditingContact(null);
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+export default AdminPanel;

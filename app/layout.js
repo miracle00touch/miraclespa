@@ -1,5 +1,6 @@
 // app/layout.js
 import localFont from "next/font/local";
+import Script from "next/script";
 import "./globals.css";
 import NavBar from "@/components/NavBar";
 import Footer from "@/components/Footer";
@@ -18,29 +19,52 @@ const geistMono = localFont({
 });
 
 export const metadata = {
-  title: "Miracle Touch Spa - Relaxation Redefined",
-  description: "Relaxation and rejuvenation in the comfort of your space.",
+  metadataBase: new URL("https://miracletouchspa.vercel.app"),
+  title:
+    "Miracle Touch Spa Manila - Premium Home Service Spa & Sensual Massage | 24/7",
+  description:
+    "Experience luxury spa treatments in Manila with Miracle Touch Spa's premium home service. Professional sensual massage therapy, Swedish massage, and spa treatments delivered to your home 24/7 in Metro Manila. Book now for ultimate relaxation.",
+  keywords:
+    "spa Manila, home service spa, sensual massage Manila, spa treatment, home massage Manila, luxury spa, therapeutic massage, Swedish massage, deep tissue massage, relaxation therapy, spa at home, mobile spa Manila, 24/7 spa service, Metro Manila spa, premium massage, wellness therapy, stress relief massage, couple massage, body massage Manila",
   openGraph: {
-    title: "Miracle Touch Spa - Relaxation Redefined",
-    description: "Relaxation and rejuvenation in the comfort of your space.",
+    title:
+      "Miracle Touch Spa Manila - Premium Home Service Spa & Sensual Massage",
+    description:
+      "Experience luxury spa treatments in Manila with our premium home service. Professional sensual massage therapy and spa treatments delivered to your home 24/7 in Metro Manila.",
     url: "https://miracletouchspa.vercel.app",
-    siteName: "Miracle Touch Spa",
+    siteName: "Miracle Touch Spa Manila",
     type: "website",
     images: [
       {
         url: "/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: "Miracle Touch Spa Logo and Tagline",
+        alt: "Miracle Touch Spa Manila - Premium Home Service Spa & Sensual Massage",
       },
     ],
     locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Miracle Touch Spa - Relaxation Redefined",
-    description: "Relaxation and rejuvenation in the comfort of your space.",
+    title:
+      "Miracle Touch Spa Manila - Premium Home Service Spa & Sensual Massage",
+    description:
+      "Experience luxury spa treatments in Manila with our premium home service. Professional sensual massage therapy delivered to your home 24/7.",
     image: "/og-image.jpg",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  verification: {
+    google: "DKT9nc5-rlF_hN3OgTZlVUXbUUVgMB3FzfpTgvyz72o",
   },
 };
 
@@ -74,21 +98,47 @@ export default function RootLayout({ children }) {
         <link rel="canonical" href={metadata.openGraph.url} />
         <link rel="icon" href="/favicon.ico" />
 
-        {/* Google Tag Manager */}
-        <script
-          async
-          src="https://www.googletagmanager.com/gtag/js?id=AW-16782790647"
-        ></script>
-        <script
+        {/* Prevent dark mode flash */}
+        <meta name="color-scheme" content="light" />
+        <style
           dangerouslySetInnerHTML={{
             __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', 'AW-16782790647');
-            `,
+            html { color-scheme: light; }
+            body { background-color: #ffffff !important; }
+          `,
           }}
         />
+
+        {/* Google Tag Manager */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=AW-16782790647"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'AW-16782790647');
+            
+            // Enhanced conversion tracking for calls
+            function trackPhoneCall() {
+              gtag('event', 'conversion', {
+                'send_to': 'AW-16782790647/phone-call',
+                'value': 1.0,
+                'currency': 'PHP'
+              });
+            }
+            
+            // Track clicks on phone numbers
+            document.addEventListener('DOMContentLoaded', function() {
+              const phoneLinks = document.querySelectorAll('a[href^="tel:"]');
+              phoneLinks.forEach(function(link) {
+                link.addEventListener('click', trackPhoneCall);
+              });
+            });
+          `}
+        </Script>
 
         {/* Schema.org Structured Data */}
         <script
@@ -127,10 +177,10 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
       >
         <NavBar />
-        <main className="pt-14 md:pt-16">{children}</main>
+        <main className="pt-14 md:pt-16 flex-grow">{children}</main>
         <Analytics />
         <Message />
         <Footer />

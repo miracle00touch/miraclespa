@@ -1,9 +1,13 @@
 // app/loading.js
 
 export default function Loading() {
+  // Simple loading component that only shows when Next.js actually needs it
   return (
-    <div className="fixed top-0 left-0 w-screen h-screen z-[9999] flex items-center justify-center bg-black bg-opacity-50 animate-fade-in">
-      <div className="w-20 h-20 border-8 border-brown-500 border-t-transparent rounded-full animate-spin"></div>
+    <div className="min-h-[50vh] bg-white flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-12 h-12 border-3 border-brown-200 border-t-brown-600 rounded-full animate-spin mx-auto mb-3" />
+        <p className="text-brown-600 text-sm font-medium">Loading...</p>
+      </div>
     </div>
   );
 }
