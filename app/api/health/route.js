@@ -8,19 +8,19 @@ export async function GET() {
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || "unknown",
       hasMongoUri: !!process.env.MONGODB_URI,
-      version: "1.0.0"
+      version: "1.0.0",
     };
-    
-    console.log('Health check:', health);
-    
+
+    console.log("Health check:", health);
+
     return NextResponse.json(health);
   } catch (error) {
-    console.error('Health check error:', error.message);
+    console.error("Health check error:", error.message);
     return NextResponse.json(
-      { 
-        status: "error", 
+      {
+        status: "error",
         error: error.message,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       },
       { status: 500 }
     );

@@ -6,16 +6,16 @@ import { requireAuth } from "@/lib/auth";
 // GET - Fetch all services (public)
 export async function GET(request) {
   try {
-    console.log('GET /api/services - Starting request');
-    
+    console.log("GET /api/services - Starting request");
+
     // Add timeout to prevent hanging in serverless
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Database operation timeout')), 25000)
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Database operation timeout")), 25000)
     );
-    
+
     const dbOperation = async () => {
       await connectDB();
-      
+
       const { searchParams } = new URL(request.url);
       const category = searchParams.get("category");
 
@@ -25,13 +25,13 @@ export async function GET(request) {
       const services = await Service.find(query).sort({ order: 1 });
       return services;
     };
-    
+
     const services = await Promise.race([dbOperation(), timeoutPromise]);
-    
+
     console.log(`GET /api/services - Found ${services.length} services`);
     return NextResponse.json({ success: true, data: services });
   } catch (error) {
-    console.error('GET /api/services - Error:', error.message);
+    console.error("GET /api/services - Error:", error.message);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }
