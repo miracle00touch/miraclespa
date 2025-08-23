@@ -5,35 +5,93 @@ import { requireAuth } from "@/lib/auth";
 
 // GET - Fetch all services (public)
 export async function GET(request) {
+  console.log("GET /api/services - Starting request");
+  
   try {
-    console.log("GET /api/services - Starting request");
+    const { searchParams } = new URL(request.url);
+    const category = searchParams.get("category");
 
-    // Add timeout to prevent hanging in serverless
+    console.log(`Query params: category=${category}`);
+
+    // Try database with shorter timeout first
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Database operation timeout")), 25000)
+      setTimeout(() => reject(new Error("Database operation timeout")), 15000)
     );
 
     const dbOperation = async () => {
+      console.log("Attempting database connection...");
       await connectDB();
-
-      const { searchParams } = new URL(request.url);
-      const category = searchParams.get("category");
+      console.log("Database connected, running query...");
 
       let query = { isActive: true };
       if (category) query.category = category;
 
       const services = await Service.find(query).sort({ order: 1 });
+      console.log(`Database query successful, found ${services.length} services`);
       return services;
     };
 
-    const services = await Promise.race([dbOperation(), timeoutPromise]);
+    try {
+      const services = await Promise.race([dbOperation(), timeoutPromise]);
+      return NextResponse.json({ success: true, data: services });
+    } catch (dbError) {
+      console.error("Database operation failed:", dbError.message);
+      
+      // Return fallback service data
+      const fallbackServices = [
+        {
+          _id: "fallback1",
+          name: "Swedish Massage",
+          description: "A relaxing full-body massage using gentle, flowing strokes to ease tension and promote relaxation.",
+          duration: "60-90 minutes",
+          price: "₱2,500 - ₱3,500",
+          category: "relaxation",
+          isActive: true,
+          order: 1,
+          image: "https://images.pexels.com/photos/3757946/pexels-photo-3757946.jpeg"
+        },
+        {
+          _id: "fallback2",
+          name: "Deep Tissue Massage",
+          description: "Therapeutic massage targeting deeper muscle layers to relieve chronic tension and muscle knots.",
+          duration: "60-90 minutes", 
+          price: "₱3,000 - ₱4,000",
+          category: "therapeutic",
+          isActive: true,
+          order: 2,
+          image: "https://images.pexels.com/photos/3757948/pexels-photo-3757948.jpeg"
+        },
+        {
+          _id: "fallback3",
+          name: "Sensual Massage",
+          description: "Intimate massage designed for couples to enhance relaxation and connection in a private setting.",
+          duration: "60-120 minutes",
+          price: "₱3,500 - ₱5,000", 
+          category: "couple",
+          isActive: true,
+          order: 3,
+          image: "https://images.pexels.com/photos/6560289/pexels-photo-6560289.jpeg"
+        }
+      ];
 
-    console.log(`GET /api/services - Found ${services.length} services`);
-    return NextResponse.json({ success: true, data: services });
+      // Filter fallback data based on query params
+      let filteredServices = fallbackServices;
+      if (category) {
+        filteredServices = filteredServices.filter(s => s.category === category);
+      }
+
+      console.log(`Returning ${filteredServices.length} fallback services`);
+      return NextResponse.json({ 
+        success: true, 
+        data: filteredServices,
+        fallback: true,
+        message: "Using fallback data due to database connectivity issues"
+      });
+    }
   } catch (error) {
-    console.error("GET /api/services - Error:", error.message);
+    console.error("GET /api/services - Unexpected error:", error.message);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: error.message, fallback: false },
       { status: 500 }
     );
   }
