@@ -60,9 +60,9 @@ const nextConfig = {
 
   // Optimize for production
   poweredByHeader: false,
-  
+
   // Output configuration for better performance
-  output: 'standalone',
+  output: "standalone",
 };
 
 export default nextConfig;

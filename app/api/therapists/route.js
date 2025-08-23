@@ -73,12 +73,20 @@ export async function GET(request) {
 
     const dbOperation = async () => {
       console.log(`[${requestId}] Attempting database connection...`);
+      console.log(`[${requestId}] Environment check:`, {
+        hasMongoUri: !!process.env.MONGODB_URI,
+        nodeEnv: process.env.NODE_ENV,
+        isVercel: !!process.env.VERCEL
+      });
+      
       await connectDB();
-      console.log(`[${requestId}] Database connected, running query...`);
+      console.log(`[${requestId}] Database connected successfully, running query...`);
 
       let query = {};
       if (gender) query.gender = gender;
       if (active === "true") query.isActive = true;
+
+      console.log(`[${requestId}] Query filter:`, query);
 
       const therapists = await Therapist.find(query).sort({ createdAt: -1 });
       console.log(
@@ -122,10 +130,16 @@ export async function GET(request) {
     } catch (dbError) {
       console.error(
         `[${requestId}] Database operation failed:`,
-        dbError.message
+        {
+          error: dbError.message,
+          code: dbError.code,
+          name: dbError.name,
+          stack: dbError.stack?.split('\n').slice(0, 3).join('\n'), // First 3 lines of stack
+        }
       );
 
       // Return fallback data if database fails
+      console.log(`[${requestId}] Using fallback data due to database error`);
       const fallbackTherapists = [
         {
           _id: "fallback1",
