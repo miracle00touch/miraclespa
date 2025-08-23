@@ -22,10 +22,16 @@ export async function GET(request) {
     console.log(`[${requestId}] Query params: category=${category}`);
 
     // Check cache first (with category consideration)
-    const cacheKey = category ? `services_${category}` : 'services_all';
+    const cacheKey = category ? `services_${category}` : "services_all";
     const now = Date.now();
-    if (cachedServices && cachedServices.key === cacheKey && now - cacheTs < CACHE_TTL) {
-      console.log(`[${requestId}] Returning cached services (age=${now - cacheTs}ms)`);
+    if (
+      cachedServices &&
+      cachedServices.key === cacheKey &&
+      now - cacheTs < CACHE_TTL
+    ) {
+      console.log(
+        `[${requestId}] Returning cached services (age=${now - cacheTs}ms)`
+      );
       return NextResponse.json(
         { success: true, data: cachedServices.data, cached: true },
         { headers: { "Cache-Control": CACHE_CONTROL_HEADER } }
@@ -39,7 +45,7 @@ export async function GET(request) {
       // Filter result if needed
       let filteredResult = result;
       if (category) {
-        filteredResult = result.filter(s => s.category === category);
+        filteredResult = result.filter((s) => s.category === category);
       }
       return NextResponse.json(
         { success: true, data: filteredResult },
@@ -65,7 +71,9 @@ export async function GET(request) {
       if (category) query.category = category;
 
       const services = await Service.find(query).sort({ order: 1 });
-      console.log(`[${requestId}] Database query successful, found ${services.length} services`);
+      console.log(
+        `[${requestId}] Database query successful, found ${services.length} services`
+      );
       return services;
     };
 
@@ -74,7 +82,7 @@ export async function GET(request) {
       try {
         const services = await Promise.race([dbOperation(), timeoutPromise]);
         // Cache the full result
-        cachedServices = { key: 'services_all', data: services };
+        cachedServices = { key: "services_all", data: services };
         cacheTs = Date.now();
         return services;
       } finally {
@@ -84,19 +92,22 @@ export async function GET(request) {
 
     try {
       const services = await pendingPromise;
-      
+
       // Filter if category is specified
       let filteredServices = services;
       if (category) {
-        filteredServices = services.filter(s => s.category === category);
+        filteredServices = services.filter((s) => s.category === category);
       }
-      
+
       return NextResponse.json(
         { success: true, data: filteredServices },
         { headers: { "Cache-Control": CACHE_CONTROL_HEADER } }
       );
     } catch (dbError) {
-      console.error(`[${requestId}] Database operation failed:`, dbError.message);
+      console.error(
+        `[${requestId}] Database operation failed:`,
+        dbError.message
+      );
 
       // Return fallback service data
       const fallbackServices = [
@@ -150,10 +161,12 @@ export async function GET(request) {
       }
 
       // Cache fallback data temporarily
-      cachedServices = { key: 'services_all', data: fallbackServices };
+      cachedServices = { key: "services_all", data: fallbackServices };
       cacheTs = Date.now();
 
-      console.log(`[${requestId}] Returning ${filteredServices.length} fallback services`);
+      console.log(
+        `[${requestId}] Returning ${filteredServices.length} fallback services`
+      );
       return NextResponse.json(
         {
           success: true,
@@ -165,7 +178,10 @@ export async function GET(request) {
       );
     }
   } catch (error) {
-    console.error(`GET /api/services [${requestId}] - Unexpected error:`, error.message);
+    console.error(
+      `GET /api/services [${requestId}] - Unexpected error:`,
+      error.message
+    );
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500, headers: { "Cache-Control": "no-store" } }

@@ -13,12 +13,6 @@ const nextConfig = {
     ],
   },
 
-  // Optimize for Vercel deployment
-  experimental: {
-    // Enable static optimization
-    optimizeCss: true,
-  },
-
   // Headers for better caching
   async headers() {
     return [
@@ -61,11 +55,14 @@ const nextConfig = {
     ];
   },
 
-  // Compress assets
+  // Enable compression (default in production)
   compress: true,
 
-  // Optimize builds
-  swcMinify: true,
+  // Optimize for production
+  poweredByHeader: false,
+  
+  // Output configuration for better performance
+  output: 'standalone',
 };
 
 export default nextConfig;
