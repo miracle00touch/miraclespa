@@ -5,23 +5,30 @@ import { requireAuth } from "@/lib/auth";
 
 // GET - Fetch all contacts (public - for displaying contact info)
 export async function GET() {
-  console.log("GET /api/contacts - Starting request");
-  
+  const requestId = Math.random().toString(36).substr(2, 9);
+  console.log(`GET /api/contacts [${requestId}] - Starting request`);
+
   try {
+    // Add small random delay to stagger simultaneous requests
+    const delay = Math.random() * 800; // 0-0.8 second
+    await new Promise(resolve => setTimeout(resolve, delay));
+
     // Try database with shorter timeout first
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Database operation timeout")), 15000)
+      setTimeout(() => reject(new Error("Database operation timeout")), 12000)
     );
 
     const dbOperation = async () => {
-      console.log("Attempting database connection...");
+      console.log(`[${requestId}] Attempting database connection...`);
       await connectDB();
-      console.log("Database connected, running query...");
-      
+      console.log(`[${requestId}] Database connected, running query...`);
+
       const contacts = await Contact.find({ isActive: true }).sort({
         order: 1,
       });
-      console.log(`Database query successful, found ${contacts.length} contacts`);
+      console.log(
+        `[${requestId}] Database query successful, found ${contacts.length} contacts`
+      );
       return contacts;
     };
 
@@ -30,7 +37,7 @@ export async function GET() {
       return NextResponse.json({ success: true, data: contacts });
     } catch (dbError) {
       console.error("Database operation failed:", dbError.message);
-      
+
       // Return fallback contact data
       const fallbackContacts = [
         {
@@ -40,7 +47,7 @@ export async function GET() {
           label: "WhatsApp / Call",
           isActive: true,
           order: 1,
-          icon: "phone"
+          icon: "phone",
         },
         {
           _id: "fallback2",
@@ -49,16 +56,16 @@ export async function GET() {
           label: "Facebook Messenger",
           isActive: true,
           order: 2,
-          icon: "facebook"
-        }
+          icon: "facebook",
+        },
       ];
 
       console.log(`Returning ${fallbackContacts.length} fallback contacts`);
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         data: fallbackContacts,
         fallback: true,
-        message: "Using fallback data due to database connectivity issues"
+        message: "Using fallback data due to database connectivity issues",
       });
     }
   } catch (error) {
