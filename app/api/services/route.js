@@ -2,42 +2,27 @@ import connectDB from "@/lib/mongodb";
 import Service from "@/models/Service";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { servicesCache, invalidateServicesCache } from "@/lib/cache";
+import { invalidateServicesCache } from "@/lib/cache";
 
-// Request deduplication and caching
+// Request deduplication only; do not store per-instance caches for services
 let pendingPromise = null;
-let cachedServices = null;
-let cacheTs = 0;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-const CACHE_CONTROL_HEADER = "public, s-maxage=300, stale-while-revalidate=60";
+const CACHE_CONTROL_HEADER = "no-store";
 
-// GET - Fetch all services (public)
+// GET - Fetch all services (public endpoint)
 export async function GET(request) {
-  const requestId = Math.random().toString(36).substr(2, 9);
-  console.log(`GET /api/services [${requestId}] - Starting request`);
+  const requestId = Math.random().toString(36).substr(2, 9); // Generate unique request ID
 
   try {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get("category");
+    const clearCache = searchParams.get("clearCache");
 
-    console.log(`[${requestId}] Query params: category=${category}`);
-
-    // Check cache first (with category consideration)
-    const cacheKey = category ? `services_${category}` : "services_all";
-    const now = Date.now();
-    if (
-      cachedServices &&
-      cachedServices.key === cacheKey &&
-      now - cacheTs < CACHE_TTL
-    ) {
-      console.log(
-        `[${requestId}] Returning cached services (age=${now - cacheTs}ms)`
-      );
-      return NextResponse.json(
-        { success: true, data: cachedServices.data, cached: true },
-        { headers: { "Cache-Control": CACHE_CONTROL_HEADER } }
-      );
+    // Force cache clear if requested
+    if (clearCache === "true") {
+      invalidateServicesCache();
     }
+
+    // No server-side caching for services; always fetch fresh data
 
     // If a request is already in flight, wait for it (dedupe)
     if (pendingPromise) {
@@ -82,9 +67,6 @@ export async function GET(request) {
     pendingPromise = (async () => {
       try {
         const services = await Promise.race([dbOperation(), timeoutPromise]);
-        // Cache the full result
-        cachedServices = { key: "services_all", data: services };
-        cacheTs = Date.now();
         return services;
       } finally {
         pendingPromise = null;
@@ -161,10 +143,7 @@ export async function GET(request) {
         );
       }
 
-      // Cache fallback data temporarily
-      cachedServices = { key: "services_all", data: fallbackServices };
-      cacheTs = Date.now();
-
+      // Do not persist fallback data beyond this response
       console.log(
         `[${requestId}] Returning ${filteredServices.length} fallback services`
       );

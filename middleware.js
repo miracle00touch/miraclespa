@@ -23,12 +23,9 @@ export function middleware(request) {
     const requestId = Math.random().toString(36).substr(2, 9);
     response.headers.set("x-request-id", requestId);
 
-    // For public API routes, add cache headers
+    // For public API routes, avoid long-lived caching here; prefer explicit headers in the API handlers
     if (request.nextUrl.pathname.match(/\/(contacts|services|therapists)$/)) {
-      response.headers.set(
-        "Cache-Control",
-        "public, s-maxage=300, stale-while-revalidate=60"
-      );
+      response.headers.set("Cache-Control", "no-store");
     }
   }
 

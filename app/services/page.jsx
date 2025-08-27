@@ -1,20 +1,14 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import Image from "next/image";
+import ServiceCard from "../../components/ServiceCard";
 import { useContacts } from "../../hooks/useContacts";
 
 const Services = () => {
   const [services, setServices] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [loadingStarted, setLoadingStarted] = useState(false); // Prevent duplicate calls
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
-  const {
-    getPrimaryPhone,
-    getPrimaryEmail,
-    loading: contactsLoading,
-    fetchContacts: fetchContactsExplicit,
-  } = useContacts({ autoFetch: true }); // Changed to auto-fetch
+  const { getPrimaryPhone, getPrimaryEmail } = useContacts({ autoFetch: true });
 
   // Get contact info with fallbacks
   const phoneNumber = getPrimaryPhone() || "+639274736260";
@@ -22,23 +16,17 @@ const Services = () => {
 
   // Load services from API
   useEffect(() => {
-    if (!loadingStarted) {
-      setLoadingStarted(true);
-      loadServices();
-    }
-  }, [loadingStarted]);
+    loadServices();
+  }, []);
 
   const loadServices = async () => {
     try {
-      setLoading(true);
       setError(null);
-
-      // Add slight delay to avoid cold start issues
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      setIsLoadingData(true);
 
       const response = await fetch("/api/services", {
         headers: {
-          "Cache-Control": "public, max-age=300, stale-while-revalidate=60",
+          "Cache-Control": "no-store",
         },
       });
 
@@ -64,7 +52,7 @@ const Services = () => {
       console.error("Error loading services:", err);
       setError(`Failed to load services: ${err.message}`);
     } finally {
-      setLoading(false);
+      setIsLoadingData(false);
     }
   };
 
@@ -127,20 +115,6 @@ const Services = () => {
     },
   ];
 
-  // Show loading state
-  if (loading) {
-    return (
-      <section className="flex flex-col items-center justify-center min-h-screen bg-[#f3e7d1] p-8">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-brown-600 mx-auto mb-4"></div>
-          <p className="text-lg text-gray-700">
-            Loading our premium services...
-          </p>
-        </div>
-      </section>
-    );
-  }
-
   // Show error state
   if (error) {
     return (
@@ -161,148 +135,167 @@ const Services = () => {
   }
 
   return (
-    <section className="flex flex-col items-center justify-center min-h-screen bg-[#f3e7d1] p-8">
-      <div className="text-center mb-10">
-        <h1 className="text-4xl md:text-5xl font-semibold font-serif mb-4 text-brown-800">
-          Sensual Massage Services in Metro Manila
-        </h1>
-        <p className="text-lg text-gray-700 max-w-3xl mx-auto mb-6">
-          Experience premium sensual spa treatments with skilled therapists.
-          Specializing in Nuru massage, sensual massage, and intimate wellness
-          services. Available for home service across Metro Manila.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-          <a
-            href={`tel:${phoneNumber.replace(/\s/g, "")}`}
-            className="bg-brown-600 hover:bg-brown-700 text-white px-8 py-3 rounded-full font-semibold transition-colors duration-300"
-          >
-            📞 Call Now: {phoneNumber}
-          </a>
-          <p className="text-sm text-gray-600">
-            Available 24/7 • Home Service Available
+    <>
+      <style jsx>{`
+        @keyframes fade-in-up {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fade-in-up {
+          animation: fade-in-up 0.6s ease-out;
+        }
+      `}</style>
+      <section className="flex flex-col items-center justify-center min-h-screen bg-[#f3e7d1] p-8">
+        <div className="text-center mb-10">
+          <h1 className="text-4xl md:text-5xl font-semibold font-serif mb-4 text-brown-800">
+            Sensual Massage Services in Metro Manila
+          </h1>
+          <p className="text-lg text-gray-700 max-w-3xl mx-auto mb-6">
+            Experience premium sensual spa treatments with skilled therapists.
+            Specializing in Nuru massage, sensual massage, and intimate wellness
+            services. Available for home service across Metro Manila.
           </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <a
+              href={`tel:${phoneNumber.replace(/\s/g, "")}`}
+              className="bg-brown-600 hover:bg-brown-700 text-white px-8 py-3 rounded-full font-semibold transition-colors duration-300"
+            >
+              📞 Call Now: {phoneNumber}
+            </a>
+            <p className="text-sm text-gray-600">
+              Available 24/7 • Home Service Available
+            </p>
+          </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-        {services.map((service, index) => (
-          <article
-            key={service._id || index}
-            className="bg-white rounded-lg shadow-lg overflow-hidden transition-transform transform hover:scale-105 hover:shadow-2xl"
-          >
-            <div className="relative w-full h-56 md:h-64">
-              <Image
-                src={
-                  service.image ||
-                  (service.images && service.images[0]) ||
-                  "https://images.pexels.com/photos/3757942/pexels-photo-3757942.jpeg"
-                }
-                alt={`${service.title} at Miracle Touch Spa in Metro Manila`}
-                fill
-                sizes="(max-width: 640px) 100vw,
-                (max-width: 1024px) 50vw,
-                (max-width: 1280px) 33vw,
-                25vw"
-                className="object-cover w-full h-full"
-              />
-            </div>
-            <div className="p-6">
-              <h3 className="text-xl md:text-2xl font-semibold text-brown-700 mb-2">
-                {service.name || service.title}
-              </h3>
-              <p className="text-sm md:text-base text-gray-700 leading-relaxed">
-                {service.description}
+        <div
+          className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto transition-opacity duration-500 ${
+            isLoadingData ? "opacity-0" : "opacity-100"
+          }`}
+        >
+          {isLoadingData ? (
+            <div className="col-span-full flex flex-col items-center justify-center py-20">
+              <div className="relative">
+                {/* Modern spinner */}
+                <div className="w-12 h-12 border-4 border-brown-200 border-t-brown-600 rounded-full animate-spin"></div>
+              </div>
+              <p className="text-brown-600 text-lg font-medium mt-4">
+                Loading services...
               </p>
-              {service.price && (
-                <div className="mt-3">
-                  <span className="text-lg font-semibold text-brown-600">
-                    ₱{service.price}
-                  </span>
-                </div>
-              )}
             </div>
-          </article>
-        ))}
-      </div>
+          ) : services.length > 0 ? (
+            services.map((service, index) => (
+              <div
+                key={service._id || index}
+                className="animate-fade-in-up opacity-0"
+                style={{
+                  animationDelay: `${index * 100}ms`,
+                  animationFillMode: "forwards",
+                }}
+              >
+                <ServiceCard service={service} index={index} />
+              </div>
+            ))
+          ) : (
+            <div className="col-span-full text-center py-20">
+              <p className="text-gray-600 text-lg">No services found.</p>
+              <button
+                onClick={loadServices}
+                className="mt-4 bg-brown-600 text-white px-4 py-2 rounded-md hover:bg-brown-700"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+        </div>
 
-      {/* Structured Data */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "LocalBusiness",
-            "@id": "https://miracletouchspa.vercel.app/#business",
-            name: "Miracle Touch Spa",
-            alternateName: "Miracle Sensual Spa Manila",
-            description:
-              "Sensual massage and intimate spa services in Metro Manila with home service available. Specializing in Nuru massage, sensual massage, and body-to-body treatments.",
-            url: "https://miracletouchspa.vercel.app",
-            telephone: phoneNumber.replace(/[^\d+]/g, ""),
-            email: emailAddress,
-            address: {
-              "@type": "PostalAddress",
-              addressLocality: "Metro Manila",
-              addressRegion: "National Capital Region",
-              addressCountry: "Philippines",
-            },
-            areaServed: [
-              {
-                "@type": "City",
-                name: "Quezon City",
+        {/* Structured Data */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "LocalBusiness",
+              "@id": "https://miracletouchspa.vercel.app/#business",
+              name: "Miracle Touch Spa",
+              alternateName: "Miracle Sensual Spa Manila",
+              description:
+                "Sensual massage and intimate spa services in Metro Manila with home service available. Specializing in Nuru massage, sensual massage, and body-to-body treatments.",
+              url: "https://miracletouchspa.vercel.app",
+              telephone: phoneNumber.replace(/[^\d+]/g, ""),
+              email: emailAddress,
+              address: {
+                "@type": "PostalAddress",
+                addressLocality: "Metro Manila",
+                addressRegion: "National Capital Region",
+                addressCountry: "Philippines",
               },
-              {
-                "@type": "City",
-                name: "Makati City",
+              areaServed: [
+                {
+                  "@type": "City",
+                  name: "Quezon City",
+                },
+                {
+                  "@type": "City",
+                  name: "Makati City",
+                },
+                {
+                  "@type": "City",
+                  name: "Manila City",
+                },
+                {
+                  "@type": "City",
+                  name: "Taguig City",
+                },
+                {
+                  "@type": "City",
+                  name: "Pasay City",
+                },
+              ],
+              priceRange: "₱₱",
+              openingHours: "Mo-Su 00:00-23:59",
+              serviceType: "Home Service Available",
+              hasOfferCatalog: {
+                "@type": "OfferCatalog",
+                name: "Massage and Spa Services",
+                itemListElement: services
+                  .filter(
+                    (service) => service && (service.name || service.title)
+                  )
+                  .map((service, index) => {
+                    const serviceName = service.name || service.title;
+                    return {
+                      "@type": "Offer",
+                      "@id": `https://miracletouchspa.vercel.app/services#${serviceName
+                        .toLowerCase()
+                        .replace(/\s+/g, "-")}`,
+                      name: serviceName,
+                      description: service.description || "",
+                      category: "Massage Therapy",
+                      areaServed: "Metro Manila",
+                      availableAtOrFrom: {
+                        "@type": "Place",
+                        name: "Miracle Touch Spa",
+                      },
+                    };
+                  }),
               },
-              {
-                "@type": "City",
-                name: "Manila City",
+              aggregateRating: {
+                "@type": "AggregateRating",
+                ratingValue: "4.8",
+                reviewCount: "150",
               },
-              {
-                "@type": "City",
-                name: "Taguig City",
-              },
-              {
-                "@type": "City",
-                name: "Pasay City",
-              },
-            ],
-            priceRange: "₱₱",
-            openingHours: "Mo-Su 00:00-23:59",
-            serviceType: "Home Service Available",
-            hasOfferCatalog: {
-              "@type": "OfferCatalog",
-              name: "Massage and Spa Services",
-              itemListElement: services
-                .filter((service) => service && (service.name || service.title))
-                .map((service, index) => {
-                  const serviceName = service.name || service.title;
-                  return {
-                    "@type": "Offer",
-                    "@id": `https://miracletouchspa.vercel.app/services#${serviceName
-                      .toLowerCase()
-                      .replace(/\s+/g, "-")}`,
-                    name: serviceName,
-                    description: service.description || "",
-                    category: "Massage Therapy",
-                    areaServed: "Metro Manila",
-                    availableAtOrFrom: {
-                      "@type": "Place",
-                      name: "Miracle Touch Spa",
-                    },
-                  };
-                }),
-            },
-            aggregateRating: {
-              "@type": "AggregateRating",
-              ratingValue: "4.8",
-              reviewCount: "150",
-            },
-          }),
-        }}
-      />
-    </section>
+            }),
+          }}
+        />
+      </section>
+    </>
   );
 };
 

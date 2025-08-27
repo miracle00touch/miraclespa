@@ -2,6 +2,7 @@ import connectDB from "@/lib/mongodb";
 import Contact from "@/models/Contact";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { invalidateContactsCache } from "@/lib/cache";
 
 // PUT - Update a contact
 export const PUT = requireAuth(async function (request, { params }) {
@@ -32,6 +33,13 @@ export const PUT = requireAuth(async function (request, { params }) {
       );
     }
 
+    // Invalidate contacts cache so clients see the update immediately
+    try {
+      invalidateContactsCache();
+    } catch (e) {
+      console.warn("Failed to invalidate contacts cache:", e);
+    }
+
     return NextResponse.json({ success: true, data: contact });
   } catch (error) {
     return NextResponse.json(
@@ -54,6 +62,13 @@ export const DELETE = requireAuth(async function (request, { params }) {
         { success: false, error: "Contact not found" },
         { status: 404 }
       );
+    }
+
+    // Invalidate contacts cache so clients see the deletion immediately
+    try {
+      invalidateContactsCache();
+    } catch (e) {
+      console.warn("Failed to invalidate contacts cache:", e);
     }
 
     return NextResponse.json({ success: true, data: {} });

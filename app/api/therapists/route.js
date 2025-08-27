@@ -2,14 +2,16 @@ import connectDB from "@/lib/mongodb";
 import Therapist from "@/models/Therapist";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { therapistsCache, invalidateTherapistsCache } from "@/lib/cache";
+import { invalidateTherapistsCache } from "@/lib/cache";
 
-// Request deduplication
+// Request deduplication only (no caching)
 let pendingPromise = null;
-const CACHE_CONTROL_HEADER = "public, s-maxage=300, stale-while-revalidate=60";
+const CACHE_CONTROL_HEADER = "no-store";
 
 // GET - Fetch all therapists or filter by gender (public)
 export async function GET(request) {
+  const requestId = Math.random().toString(36).substr(2, 9); // Generate unique request ID
+
   try {
     const { searchParams } = new URL(request.url);
     const gender = searchParams.get("gender");
@@ -21,24 +23,7 @@ export async function GET(request) {
       invalidateTherapistsCache();
     }
 
-    // Check cache first
-    const cachedData = therapistsCache.get();
-    if (cachedData && !clearCache) {
-      let filteredTherapists = cachedData;
-      if (gender)
-        filteredTherapists = filteredTherapists.filter(
-          (t) => t.gender === gender
-        );
-      if (active === "true")
-        filteredTherapists = filteredTherapists.filter(
-          (t) => t.isActive === true
-        );
-
-      return NextResponse.json(
-        { success: true, data: filteredTherapists, cached: true },
-        { headers: { "Cache-Control": CACHE_CONTROL_HEADER } }
-      );
-    }
+    // No server-side caching for therapists; always fetch fresh data
 
     // If a request is already in flight, wait for it (dedupe)
     if (pendingPromise) {
@@ -76,8 +61,6 @@ export async function GET(request) {
     pendingPromise = (async () => {
       try {
         const therapists = await Promise.race([dbOperation(), timeoutPromise]);
-        // Cache the full result
-        therapistsCache.set(therapists);
         return therapists;
       } finally {
         pendingPromise = null;
@@ -150,9 +133,6 @@ export async function GET(request) {
           (t) => t.isActive === true
         );
       }
-
-      // Cache fallback data temporarily
-      therapistsCache.set(fallbackTherapists);
 
       return NextResponse.json(
         {

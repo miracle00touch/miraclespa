@@ -1,6 +1,8 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
+import TherapistImageLoader from "../../components/TherapistImageLoader";
+import PublicTherapistSkeleton from "../../components/PublicTherapistSkeleton";
 import { useContacts } from "../../hooks/useContacts";
 import {
   FaTimes,
@@ -19,16 +21,12 @@ const Female = () => {
   const [selectedTherapist, setSelectedTherapist] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [massagers, setMassagers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoadingData, setIsLoadingData] = useState(true);
   const [error, setError] = useState(null);
-  const [loadingStarted, setLoadingStarted] = useState(false); // Prevent duplicate calls
 
-  const {
-    getPrimaryPhone,
-    getWhatsAppNumber,
-    loading: contactsLoading,
-    fetchContacts: fetchContactsExplicit,
-  } = useContacts({ autoFetch: true }); // Changed to auto-fetch
+  const { getPrimaryPhone, getWhatsAppNumber } = useContacts({
+    autoFetch: true,
+  });
 
   // Get contact info with fallbacks
   const phoneNumber = getPrimaryPhone() || "+639274736260";
@@ -36,25 +34,22 @@ const Female = () => {
 
   // Load female therapists from API
   useEffect(() => {
-    if (!loadingStarted) {
-      setLoadingStarted(true);
-      loadTherapists();
-    }
-  }, [loadingStarted]);
+    loadTherapists();
+  }, []);
 
   const loadTherapists = async () => {
     try {
-      setLoading(true);
       setError(null);
+      setIsLoadingData(true);
 
-      // Add slight delay to avoid cold start issues
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      // Small delay to ensure skeleton is visible
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       const response = await fetch(
         "/api/therapists?gender=female&active=true",
         {
           headers: {
-            "Cache-Control": "public, max-age=300, stale-while-revalidate=60",
+            "Cache-Control": "no-store",
           },
         }
       );
@@ -64,19 +59,16 @@ const Female = () => {
       }
 
       const data = await response.json();
-      if (data.success && Array.isArray(data.data)) {
+      if (data.success) {
         setMassagers(data.data);
       } else {
-        console.error("Invalid data structure:", data);
-        setError(
-          data.error || "Failed to load therapists - invalid data structure"
-        );
+        setError(data.error || "Failed to load therapists");
       }
     } catch (err) {
       console.error("Error loading therapists:", err);
       setError(`Failed to load therapists: ${err.message}`);
     } finally {
-      setLoading(false);
+      setIsLoadingData(false);
     }
   };
 
@@ -257,17 +249,7 @@ const Female = () => {
     );
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#f3e7d1] flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brown-600 mx-auto"></div>
-          <p className="mt-4 text-brown-700">Loading therapists...</p>
-        </div>
-      </div>
-    );
-  }
-
+  // Show error state
   if (error) {
     return (
       <div className="min-h-screen bg-[#f3e7d1] flex items-center justify-center">
@@ -282,6 +264,10 @@ const Female = () => {
         </div>
       </div>
     );
+  }
+  // While fetching, show the page-level skeleton to keep layout stable
+  if (isLoadingData) {
+    return <PublicTherapistSkeleton />;
   }
 
   return (
@@ -298,7 +284,17 @@ const Female = () => {
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-        {Array.isArray(massagers) && massagers.length > 0 ? (
+        {massagers.length === 0 ? (
+          <div className="col-span-full text-center py-20">
+            <p className="text-gray-600 text-lg">No therapists found.</p>
+            <button
+              onClick={loadTherapists}
+              className="mt-4 bg-brown-600 text-white px-4 py-2 rounded-md hover:bg-brown-700"
+            >
+              Retry
+            </button>
+          </div>
+        ) : (
           massagers.map((massager) => (
             <div
               key={massager._id || massager.id}
@@ -306,23 +302,17 @@ const Female = () => {
               className="bg-white shadow-lg rounded-lg overflow-hidden transform hover:scale-105 transition-all duration-300 cursor-pointer hover:shadow-2xl group"
             >
               <div className="relative w-full h-56 overflow-hidden">
-                <Image
+                <TherapistImageLoader
                   src={
                     massager.images?.[0] ||
                     massager.image ||
                     "https://images.pexels.com/photos/3757946/pexels-photo-3757946.jpeg"
                   }
                   alt={massager.name || "Therapist"}
-                  fill
-                  sizes="(max-width: 640px) 100vw,
-                       (max-width: 1024px) 50vw,
-                       (max-width: 1280px) 25vw,
-                       20vw"
-                  className="object-cover h-full w-full group-hover:scale-110 transition-transform duration-500"
-                  onError={(e) => {
-                    e.target.src =
-                      "https://images.pexels.com/photos/3757946/pexels-photo-3757946.jpeg";
-                  }}
+                  className="h-full w-full group-hover:scale-110 transition-transform duration-500"
+                  fill={true}
+                  fallbackIcon={true}
+                  showSkeleton={false}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 <div className="absolute bottom-4 left-4 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -386,16 +376,6 @@ const Female = () => {
               </div>
             </div>
           ))
-        ) : (
-          <div className="col-span-full text-center py-12">
-            <p className="text-gray-500 text-lg">
-              {loading
-                ? "Loading therapists..."
-                : error
-                ? error
-                : "No therapists available at the moment."}
-            </p>
-          </div>
         )}
       </div>
 
@@ -413,13 +393,15 @@ const Female = () => {
 
               {/* Header with Image */}
               <div className="relative h-80 md:h-96 group">
-                <Image
+                <TherapistImageLoader
                   src={selectedTherapist.images[currentImageIndex]}
                   alt={`${selectedTherapist.name} - Photo ${
                     currentImageIndex + 1
                   }`}
-                  fill
-                  className="object-cover rounded-t-lg"
+                  className="rounded-t-lg"
+                  fill={true}
+                  fallbackIcon={true}
+                  showSkeleton={false}
                 />
 
                 {/* Image Navigation - only show if multiple images */}
@@ -487,13 +469,15 @@ const Female = () => {
                             : "border-gray-300 hover:border-brown-300"
                         }`}
                       >
-                        <Image
+                        <TherapistImageLoader
                           src={image}
                           alt={`${selectedTherapist.name} - Thumbnail ${
                             index + 1
                           }`}
-                          fill
-                          className="object-cover"
+                          className=""
+                          fill={true}
+                          fallbackIcon={false}
+                          showSkeleton={false}
                         />
                       </button>
                     ))}

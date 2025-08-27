@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import Image from "next/image";
-import { FaUpload, FaTimes, FaSpinner } from "react-icons/fa";
+import { FaUpload, FaTimes } from "react-icons/fa";
 
 const ImageUpload = ({
   images = [],
@@ -137,7 +137,9 @@ const ImageUpload = ({
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center">
                   {uploadingIndex === index ? (
-                    <FaSpinner className="animate-spin text-2xl text-gray-400 mb-2" />
+                    <div className="animate-pulse">
+                      <div className="w-8 h-8 bg-gray-300 rounded mb-2"></div>
+                    </div>
                   ) : (
                     <FaUpload className="text-2xl text-gray-400 mb-2" />
                   )}

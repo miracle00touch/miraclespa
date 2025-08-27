@@ -5,6 +5,9 @@ import Image from "next/image";
 import ServiceForm from "../../components/ServiceForm";
 import TherapistForm from "../../components/TherapistForm";
 import ContactForm from "../../components/ContactForm";
+import TherapistImageLoader from "../../components/TherapistImageLoader";
+import TherapistCardSkeleton from "../../components/TherapistCardSkeleton";
+import AdminLoadingSkeleton from "../../components/AdminLoadingSkeleton";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 import {
@@ -21,7 +24,33 @@ import {
   FaSignOutAlt,
   FaLock,
   FaShieldAlt,
+  FaArrowUp,
+  FaArrowDown,
 } from "react-icons/fa";
+
+// Enhanced Login Form Component
+const LoadingButton = ({
+  children,
+  loading,
+  disabled,
+  onClick,
+  className,
+  ...props
+}) => (
+  <button
+    onClick={onClick}
+    disabled={disabled || loading}
+    className={`${className} ${
+      loading ? "opacity-75 cursor-wait" : ""
+    } transition-opacity`}
+    {...props}
+  >
+    {loading && (
+      <div className="inline-block w-4 h-4 mr-2 border-2 border-current border-t-transparent rounded-full animate-spin" />
+    )}
+    {children}
+  </button>
+);
 
 // Enhanced Login Form Component
 const EnhancedLoginForm = ({ onLogin }) => {
@@ -143,7 +172,7 @@ const EnhancedLoginForm = ({ onLogin }) => {
           >
             {loading ? (
               <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                <div className="w-5 h-5 bg-brown-300 rounded mr-2 animate-pulse"></div>
                 Authenticating...
               </div>
             ) : (
@@ -192,32 +221,66 @@ const AdminPanel = () => {
   const [showContactForm, setShowContactForm] = useState(false);
   const [genderFilter, setGenderFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [loadingStates, setLoadingStates] = useState({
+    services: false,
+    therapists: false,
+    contacts: false,
+    operations: new Set(), // Track individual operation IDs
+  });
+
+  // Helper functions to manage loading states
+  const addOperation = (operationId) => {
+    setLoadingStates((prev) => ({
+      ...prev,
+      operations: new Set([...prev.operations, operationId]),
+    }));
+  };
+
+  const removeOperation = (operationId) => {
+    setLoadingStates((prev) => {
+      const newOperations = new Set(prev.operations);
+      newOperations.delete(operationId);
+      return {
+        ...prev,
+        operations: newOperations,
+      };
+    });
+  };
 
   // Load functions - defined at component level to avoid hook order issues
-  const loadServices = useCallback(async () => {
-    try {
-      const response = await fetch("/api/services");
+  const loadServices = useCallback(
+    async (clearCache = false) => {
+      try {
+        const url = clearCache
+          ? "/api/services?clearCache=true"
+          : "/api/services";
+        const response = await fetch(url);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          setServices([]);
+          return;
+        }
+
+        const data = await response.json();
+        if (data.success) {
+          setServices(data.data || []);
+          if (clearCache) {
+            toast.success("Services data refreshed");
+          }
+        } else {
+          setServices([]);
+        }
+      } catch (error) {
         setServices([]);
-        return;
       }
-
-      const data = await response.json();
-      if (data.success) {
-        setServices(data.data || []);
-      } else {
-        setServices([]);
-      }
-    } catch (error) {
-      setServices([]);
-    }
-  }, []);
+    },
+    [toast]
+  );
 
   const loadTherapists = useCallback(
     async (clearCache = false) => {
@@ -285,7 +348,7 @@ const AdminPanel = () => {
     } finally {
       setLoading(false);
     }
-  }, [loadServices, loadTherapists, loadContacts]);
+  }, [loadContacts, loadServices, loadTherapists]);
 
   useEffect(() => {
     if (isAuthenticated && !authLoading) {
@@ -295,16 +358,7 @@ const AdminPanel = () => {
 
   // Show loading screen while checking authentication, unless it has stalled
   if (authLoading && !authStale) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brown-200 to-brown-300">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brown-600"></div>
-          <p className="text-brown-700 font-medium">
-            Checking authentication...
-          </p>
-        </div>
-      </div>
-    );
+    return <AdminLoadingSkeleton type="auth" />;
   }
 
   // Show login form if not authenticated (either auth completed or stalled)
@@ -313,8 +367,16 @@ const AdminPanel = () => {
   }
 
   const saveService = async (serviceData) => {
+    const operationId = `save-service-${Date.now()}`;
     try {
+      addOperation(operationId);
       if (editingService) {
+        // Optimistically update UI first
+        const optimisticUpdate = services.map((s) =>
+          s._id === serviceData._id ? { ...s, ...serviceData } : s
+        );
+        setServices(optimisticUpdate);
+
         const response = await fetch(`/api/services/${serviceData._id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -323,10 +385,15 @@ const AdminPanel = () => {
         });
         const data = await response.json();
         if (data.success) {
+          // Update with actual server data
           setServices(
             services.map((s) => (s._id === serviceData._id ? data.data : s))
           );
-          toast.success("Service updated");
+          toast.success("Service updated successfully");
+        } else {
+          // Revert optimistic update on failure
+          setServices(services);
+          toast.error(data.message || "Failed to update service");
         }
       } else {
         const response = await fetch("/api/services", {
@@ -337,30 +404,48 @@ const AdminPanel = () => {
         });
         const data = await response.json();
         if (data.success) {
+          // Add new service to existing list
           setServices([...services, data.data]);
-          toast.success("Service created");
+          toast.success("Service created successfully");
+        } else {
+          toast.error(data.message || "Failed to create service");
         }
       }
       setEditingService(null);
       setShowServiceForm(false);
     } catch (error) {
+      // Revert optimistic update on error
+      if (editingService) {
+        setServices(services);
+      }
       toast.error("Failed to save service");
+    } finally {
+      removeOperation(operationId);
     }
   };
 
   const deleteService = async (id) => {
     if (confirm("Are you sure you want to delete this service?")) {
       try {
+        // Optimistically remove from UI
+        const originalServices = [...services];
+        setServices(services.filter((s) => s._id !== id));
+
         const response = await fetch(`/api/services/${id}`, {
           method: "DELETE",
           credentials: "include",
         });
         const data = await response.json();
         if (data.success) {
-          setServices(services.filter((s) => s._id !== id));
-          toast.success("Service deleted");
+          toast.success("Service deleted successfully");
+        } else {
+          // Revert on failure
+          setServices(originalServices);
+          toast.error(data.message || "Failed to delete service");
         }
       } catch (error) {
+        // Revert on error
+        setServices(services);
         toast.error("Failed to delete service");
       }
     }
@@ -370,6 +455,12 @@ const AdminPanel = () => {
   const saveTherapist = async (therapistData) => {
     try {
       if (editingTherapist) {
+        // Optimistically update UI
+        const optimisticUpdate = therapists.map((t) =>
+          t._id === therapistData._id ? { ...t, ...therapistData } : t
+        );
+        setTherapists(optimisticUpdate);
+
         const response = await fetch(`/api/therapists/${therapistData._id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -381,7 +472,11 @@ const AdminPanel = () => {
           setTherapists(
             therapists.map((t) => (t._id === therapistData._id ? data.data : t))
           );
-          toast.success("Therapist updated");
+          toast.success("Therapist updated successfully");
+        } else {
+          // Revert on failure
+          setTherapists(therapists);
+          toast.error(data.message || "Failed to update therapist");
         }
       } else {
         const response = await fetch("/api/therapists", {
@@ -393,12 +488,17 @@ const AdminPanel = () => {
         const data = await response.json();
         if (data.success) {
           setTherapists([...therapists, data.data]);
-          toast.success("Therapist created");
+          toast.success("Therapist created successfully");
+        } else {
+          toast.error(data.message || "Failed to create therapist");
         }
       }
       setEditingTherapist(null);
       setShowTherapistForm(false);
     } catch (error) {
+      if (editingTherapist) {
+        setTherapists(therapists);
+      }
       toast.error("Failed to save therapist");
     }
   };
@@ -406,16 +506,25 @@ const AdminPanel = () => {
   const deleteTherapist = async (id) => {
     if (confirm("Are you sure you want to delete this therapist?")) {
       try {
+        // Optimistically remove from UI
+        const originalTherapists = [...therapists];
+        setTherapists(therapists.filter((t) => t._id !== id));
+
         const response = await fetch(`/api/therapists/${id}`, {
           method: "DELETE",
           credentials: "include",
         });
         const data = await response.json();
         if (data.success) {
-          setTherapists(therapists.filter((t) => t._id !== id));
-          toast.success("Therapist deleted");
+          toast.success("Therapist deleted successfully");
+        } else {
+          // Revert on failure
+          setTherapists(originalTherapists);
+          toast.error(data.message || "Failed to delete therapist");
         }
       } catch (error) {
+        // Revert on error
+        setTherapists(therapists);
         toast.error("Failed to delete therapist");
       }
     }
@@ -424,6 +533,14 @@ const AdminPanel = () => {
   const toggleTherapistStatus = async (id) => {
     try {
       const therapist = therapists.find((t) => t._id === id);
+      if (!therapist) return;
+
+      // Optimistically update UI
+      const optimisticUpdate = therapists.map((t) =>
+        t._id === id ? { ...t, isActive: !t.isActive } : t
+      );
+      setTherapists(optimisticUpdate);
+
       const response = await fetch(`/api/therapists/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -433,9 +550,17 @@ const AdminPanel = () => {
       const data = await response.json();
       if (data.success) {
         setTherapists(therapists.map((t) => (t._id === id ? data.data : t)));
-        toast.success("Therapist visibility updated");
+        toast.success(
+          `Therapist ${data.data.isActive ? "activated" : "deactivated"}`
+        );
+      } else {
+        // Revert on failure
+        setTherapists(therapists);
+        toast.error(data.message || "Failed to update therapist status");
       }
     } catch (error) {
+      // Revert on error
+      setTherapists(therapists);
       toast.error("Failed to update therapist status");
     }
   };
@@ -444,6 +569,13 @@ const AdminPanel = () => {
     try {
       const therapist = therapists.find((t) => t._id === id);
       if (!therapist) return;
+
+      // Optimistically update UI
+      const optimisticUpdate = therapists.map((t) =>
+        t._id === id ? { ...t, gender: newGender } : t
+      );
+      setTherapists(optimisticUpdate);
+
       const response = await fetch(`/api/therapists/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -453,9 +585,15 @@ const AdminPanel = () => {
       const data = await response.json();
       if (data.success) {
         setTherapists(therapists.map((t) => (t._id === id ? data.data : t)));
-        toast.success("Therapist gender updated");
+        toast.success(`Therapist gender updated to ${newGender}`);
+      } else {
+        // Revert on failure
+        setTherapists(therapists);
+        toast.error(data.message || "Failed to update therapist gender");
       }
     } catch (error) {
+      // Revert on error
+      setTherapists(therapists);
       toast.error("Failed to update therapist gender");
     }
   };
@@ -464,6 +602,12 @@ const AdminPanel = () => {
   const saveContact = async (contactData) => {
     try {
       if (editingContact) {
+        // Optimistically update UI
+        const optimisticUpdate = contacts.map((c) =>
+          c._id === contactData._id ? { ...c, ...contactData } : c
+        );
+        setContacts(optimisticUpdate);
+
         const response = await fetch(`/api/contacts/${contactData._id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -475,7 +619,11 @@ const AdminPanel = () => {
           setContacts(
             contacts.map((c) => (c._id === contactData._id ? data.data : c))
           );
-          toast.success("Contact updated");
+          toast.success("Contact updated successfully");
+        } else {
+          // Revert on failure
+          setContacts(contacts);
+          toast.error(data.message || "Failed to update contact");
         }
       } else {
         const response = await fetch("/api/contacts", {
@@ -487,12 +635,17 @@ const AdminPanel = () => {
         const data = await response.json();
         if (data.success) {
           setContacts([...contacts, data.data]);
-          toast.success("Contact created");
+          toast.success("Contact created successfully");
+        } else {
+          toast.error(data.message || "Failed to create contact");
         }
       }
       setEditingContact(null);
       setShowContactForm(false);
     } catch (error) {
+      if (editingContact) {
+        setContacts(contacts);
+      }
       toast.error("Failed to save contact");
     }
   };
@@ -500,16 +653,25 @@ const AdminPanel = () => {
   const deleteContact = async (id) => {
     if (confirm("Are you sure you want to delete this contact?")) {
       try {
+        // Optimistically remove from UI
+        const originalContacts = [...contacts];
+        setContacts(contacts.filter((c) => c._id !== id));
+
         const response = await fetch(`/api/contacts/${id}`, {
           method: "DELETE",
           credentials: "include",
         });
         const data = await response.json();
         if (data.success) {
-          setContacts(contacts.filter((c) => c._id !== id));
-          toast.success("Contact deleted");
+          toast.success("Contact deleted successfully");
+        } else {
+          // Revert on failure
+          setContacts(originalContacts);
+          toast.error(data.message || "Failed to delete contact");
         }
       } catch (error) {
+        // Revert on error
+        setContacts(contacts);
         toast.error("Failed to delete contact");
       }
     }
@@ -518,6 +680,14 @@ const AdminPanel = () => {
   const toggleContactStatus = async (id) => {
     try {
       const contact = contacts.find((c) => c._id === id);
+      if (!contact) return;
+
+      // Optimistically update UI
+      const optimisticUpdate = contacts.map((c) =>
+        c._id === id ? { ...c, isActive: !c.isActive } : c
+      );
+      setContacts(optimisticUpdate);
+
       const response = await fetch(`/api/contacts/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -527,22 +697,120 @@ const AdminPanel = () => {
       const data = await response.json();
       if (data.success) {
         setContacts(contacts.map((c) => (c._id === id ? data.data : c)));
-        toast.success("Contact visibility updated");
+        toast.success(
+          `Contact ${data.data.isActive ? "activated" : "deactivated"}`
+        );
+      } else {
+        // Revert on failure
+        setContacts(contacts);
+        toast.error(data.message || "Failed to update contact status");
       }
     } catch (error) {
+      // Revert on error
+      setContacts(contacts);
       toast.error("Failed to update contact status");
     }
   };
 
+  // Contact ordering functions
+  const moveContactUp = async (id) => {
+    const contactIndex = contacts.findIndex((c) => c._id === id);
+    if (contactIndex <= 0) return; // Already at top or not found
+
+    const currentContact = contacts[contactIndex];
+    const previousContact = contacts[contactIndex - 1];
+
+    try {
+      // Optimistically update UI by swapping orders
+      const optimisticContacts = [...contacts];
+      optimisticContacts[contactIndex] = {
+        ...currentContact,
+        order: previousContact.order,
+      };
+      optimisticContacts[contactIndex - 1] = {
+        ...previousContact,
+        order: currentContact.order,
+      };
+      optimisticContacts.sort((a, b) => a.order - b.order);
+      setContacts(optimisticContacts);
+
+      // Update both contacts on server
+      await Promise.all([
+        fetch(`/api/contacts/${currentContact._id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            ...currentContact,
+            order: previousContact.order,
+          }),
+        }),
+        fetch(`/api/contacts/${previousContact._id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            ...previousContact,
+            order: currentContact.order,
+          }),
+        }),
+      ]);
+
+      toast.success("Contact moved up");
+    } catch (error) {
+      // Revert on error
+      setContacts(contacts);
+      toast.error("Failed to reorder contact");
+    }
+  };
+
+  const moveContactDown = async (id) => {
+    const contactIndex = contacts.findIndex((c) => c._id === id);
+    if (contactIndex >= contacts.length - 1 || contactIndex === -1) return; // Already at bottom or not found
+
+    const currentContact = contacts[contactIndex];
+    const nextContact = contacts[contactIndex + 1];
+
+    try {
+      // Optimistically update UI by swapping orders
+      const optimisticContacts = [...contacts];
+      optimisticContacts[contactIndex] = {
+        ...currentContact,
+        order: nextContact.order,
+      };
+      optimisticContacts[contactIndex + 1] = {
+        ...nextContact,
+        order: currentContact.order,
+      };
+      optimisticContacts.sort((a, b) => a.order - b.order);
+      setContacts(optimisticContacts);
+
+      // Update both contacts on server
+      await Promise.all([
+        fetch(`/api/contacts/${currentContact._id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ ...currentContact, order: nextContact.order }),
+        }),
+        fetch(`/api/contacts/${nextContact._id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ ...nextContact, order: currentContact.order }),
+        }),
+      ]);
+
+      toast.success("Contact moved down");
+    } catch (error) {
+      // Revert on error
+      setContacts(contacts);
+      toast.error("Failed to reorder contact");
+    }
+  };
+
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brown-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading admin panel...</p>
-        </div>
-      </div>
-    );
+    return <AdminLoadingSkeleton type="panel" />;
   }
 
   return (
@@ -561,6 +829,12 @@ const AdminPanel = () => {
                 </h1>
                 <span className="text-sm text-gray-500 font-medium">
                   Miracle Touch Spa Management System
+                  {loadingStates.operations.size > 0 && (
+                    <span className="ml-2 text-blue-600 animate-pulse">
+                      • Processing ({loadingStates.operations.size} operation
+                      {loadingStates.operations.size !== 1 ? "s" : ""})...
+                    </span>
+                  )}
                 </span>
               </div>
             </div>
@@ -695,182 +969,196 @@ const AdminPanel = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {therapists
-                .filter((t) =>
-                  genderFilter === "all"
-                    ? true
-                    : (t.gender || "").toLowerCase() === genderFilter
-                )
-                .map((therapist) => (
-                  <div
-                    key={therapist._id}
-                    className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
-                  >
-                    <div className="relative h-48 bg-gray-200">
-                      {therapist.images && therapist.images.length > 0 ? (
-                        <Image
-                          src={therapist.images[0]}
-                          alt={therapist.name}
-                          fill
-                          className="object-cover"
-                        />
-                      ) : (
-                        <div className="flex items-center justify-center h-full text-gray-400">
-                          <FaUser size={48} />
-                        </div>
-                      )}
-                      <div className="absolute top-2 right-2">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            therapist.isActive
-                              ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
-                          }`}
-                        >
-                          {therapist.isActive ? "Active" : "Inactive"}
-                        </span>
-                      </div>
-                      <div className="absolute top-2 left-2">
-                        <div className="flex items-center bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs">
-                          <FaStar className="mr-1" size={10} />
-                          {therapist.rating || 5.0}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="p-4">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                        {therapist.name}
-                      </h3>
-                      <p className="text-sm text-gray-600 mb-2">
-                        {therapist.gender} •{" "}
-                        {therapist.age
-                          ? `${therapist.age} years old`
-                          : "Age not specified"}{" "}
-                        • {therapist.experience}
-                      </p>
-                      <p className="text-sm text-gray-600 mb-2">
-                        📍 {therapist.location}
-                      </p>
-                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-                        {therapist.description}
-                      </p>
-
-                      {therapist.specialties &&
-                        therapist.specialties.length > 0 && (
-                          <div className="mb-3">
-                            <div className="flex flex-wrap gap-1">
-                              {therapist.specialties
-                                .slice(0, 3)
-                                .map((specialty, index) => (
-                                  <span
-                                    key={index}
-                                    className="text-xs bg-brown-100 text-brown-700 px-2 py-1 rounded-full"
-                                  >
-                                    {specialty}
-                                  </span>
-                                ))}
-                              {therapist.specialties.length > 3 && (
-                                <span className="text-xs text-gray-500">
-                                  +{therapist.specialties.length - 3} more
-                                </span>
-                              )}
+              {loading ? (
+                // Show skeleton loaders while loading
+                Array.from({ length: 6 }).map((_, index) => (
+                  <TherapistCardSkeleton key={index} />
+                ))
+              ) : (
+                <>
+                  {therapists
+                    .filter((t) =>
+                      genderFilter === "all"
+                        ? true
+                        : (t.gender || "").toLowerCase() === genderFilter
+                    )
+                    .map((therapist) => (
+                      <div
+                        key={therapist._id}
+                        className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+                      >
+                        <div className="relative h-48 bg-gray-200">
+                          <TherapistImageLoader
+                            src={
+                              therapist.images && therapist.images.length > 0
+                                ? therapist.images[0]
+                                : null
+                            }
+                            alt={therapist.name}
+                            className="h-full w-full"
+                            fill={true}
+                            fallbackIcon={true}
+                            showSkeleton={false}
+                          />
+                          <div className="absolute top-2 right-2">
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                therapist.isActive
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              {therapist.isActive ? "Active" : "Inactive"}
+                            </span>
+                          </div>
+                          <div className="absolute top-2 left-2">
+                            <div className="flex items-center bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs">
+                              <FaStar className="mr-1" size={10} />
+                              {therapist.rating || 5.0}
                             </div>
                           </div>
-                        )}
-
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-semibold text-brown-600">
-                          {therapist.price || "Price not set"}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {therapist.images ? therapist.images.length : 0}{" "}
-                          photos
-                        </span>
-                      </div>
-
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => {
-                            setEditingTherapist(therapist);
-                            setShowTherapistForm(true);
-                          }}
-                          className="flex-1 bg-brown-600 text-white px-3 py-2 rounded-md hover:bg-brown-700 flex items-center justify-center text-sm"
-                        >
-                          <FaEdit className="mr-1" size={12} />
-                          Edit
-                        </button>
-                        <div className="flex items-center gap-2">
-                          <button
-                            title="Mark as Male"
-                            onClick={() =>
-                              updateTherapistGender(therapist._id, "male")
-                            }
-                            className="px-3 py-1 bg-blue-50 text-blue-800 border border-blue-100 rounded-md text-sm hover:bg-blue-100"
-                          >
-                            Male
-                          </button>
-                          <button
-                            title="Mark as Female"
-                            onClick={() =>
-                              updateTherapistGender(therapist._id, "female")
-                            }
-                            className="px-3 py-1 bg-pink-50 text-pink-800 border border-pink-100 rounded-md text-sm hover:bg-pink-100"
-                          >
-                            Female
-                          </button>
                         </div>
-                        <button
-                          onClick={() => toggleTherapistStatus(therapist._id)}
-                          className={`flex-1 px-3 py-2 rounded-md text-sm flex items-center justify-center ${
-                            therapist.isActive
-                              ? "bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
-                              : "bg-green-100 text-green-700 hover:bg-green-200"
-                          }`}
-                        >
-                          {therapist.isActive ? (
-                            <>
-                              <FaEyeSlash className="mr-1" size={12} />
-                              Hide
-                            </>
-                          ) : (
-                            <>
-                              <FaEye className="mr-1" size={12} />
-                              Show
-                            </>
-                          )}
-                        </button>
-                        <button
-                          onClick={() => deleteTherapist(therapist._id)}
-                          className="px-3 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 flex items-center justify-center"
-                        >
-                          <FaTrash size={12} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
 
-              {/* Empty State */}
-              {therapists.length === 0 && (
-                <div className="col-span-full text-center py-12">
-                  <FaUser className="mx-auto text-gray-400 mb-4" size={48} />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    No therapists yet
-                  </h3>
-                  <p className="text-gray-500 mb-4">
-                    Add your first therapist with image upload capability.
-                  </p>
-                  <button
-                    onClick={() => {
-                      setEditingTherapist(null);
-                      setShowTherapistForm(true);
-                    }}
-                    className="bg-brown-600 text-white px-4 py-2 rounded-md hover:bg-brown-700"
-                  >
-                    Add First Therapist
-                  </button>
-                </div>
+                        <div className="p-4">
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                            {therapist.name}
+                          </h3>
+                          <p className="text-sm text-gray-600 mb-2">
+                            {therapist.gender} •{" "}
+                            {therapist.age
+                              ? `${therapist.age} years old`
+                              : "Age not specified"}{" "}
+                            • {therapist.experience}
+                          </p>
+                          <p className="text-sm text-gray-600 mb-2">
+                            📍 {therapist.location}
+                          </p>
+                          <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                            {therapist.description}
+                          </p>
+
+                          {therapist.specialties &&
+                            therapist.specialties.length > 0 && (
+                              <div className="mb-3">
+                                <div className="flex flex-wrap gap-1">
+                                  {therapist.specialties
+                                    .slice(0, 3)
+                                    .map((specialty, index) => (
+                                      <span
+                                        key={index}
+                                        className="text-xs bg-brown-100 text-brown-700 px-2 py-1 rounded-full"
+                                      >
+                                        {specialty}
+                                      </span>
+                                    ))}
+                                  {therapist.specialties.length > 3 && (
+                                    <span className="text-xs text-gray-500">
+                                      +{therapist.specialties.length - 3} more
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-sm font-semibold text-brown-600">
+                              {therapist.price || "Price not set"}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {therapist.images ? therapist.images.length : 0}{" "}
+                              photos
+                            </span>
+                          </div>
+
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => {
+                                setEditingTherapist(therapist);
+                                setShowTherapistForm(true);
+                              }}
+                              className="flex-1 bg-brown-600 text-white px-3 py-2 rounded-md hover:bg-brown-700 flex items-center justify-center text-sm"
+                            >
+                              <FaEdit className="mr-1" size={12} />
+                              Edit
+                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                title="Mark as Male"
+                                onClick={() =>
+                                  updateTherapistGender(therapist._id, "male")
+                                }
+                                className="px-3 py-1 bg-blue-50 text-blue-800 border border-blue-100 rounded-md text-sm hover:bg-blue-100"
+                              >
+                                Male
+                              </button>
+                              <button
+                                title="Mark as Female"
+                                onClick={() =>
+                                  updateTherapistGender(therapist._id, "female")
+                                }
+                                className="px-3 py-1 bg-pink-50 text-pink-800 border border-pink-100 rounded-md text-sm hover:bg-pink-100"
+                              >
+                                Female
+                              </button>
+                            </div>
+                            <button
+                              onClick={() =>
+                                toggleTherapistStatus(therapist._id)
+                              }
+                              className={`flex-1 px-3 py-2 rounded-md text-sm flex items-center justify-center ${
+                                therapist.isActive
+                                  ? "bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
+                                  : "bg-green-100 text-green-700 hover:bg-green-200"
+                              }`}
+                            >
+                              {therapist.isActive ? (
+                                <>
+                                  <FaEyeSlash className="mr-1" size={12} />
+                                  Hide
+                                </>
+                              ) : (
+                                <>
+                                  <FaEye className="mr-1" size={12} />
+                                  Show
+                                </>
+                              )}
+                            </button>
+                            <button
+                              onClick={() => deleteTherapist(therapist._id)}
+                              className="px-3 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 flex items-center justify-center"
+                            >
+                              <FaTrash size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                  {/* Empty State */}
+                  {therapists.length === 0 && (
+                    <div className="col-span-full text-center py-12">
+                      <FaUser
+                        className="mx-auto text-gray-400 mb-4"
+                        size={48}
+                      />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">
+                        No therapists yet
+                      </h3>
+                      <p className="text-gray-500 mb-4">
+                        Add your first therapist with image upload capability.
+                      </p>
+                      <button
+                        onClick={() => {
+                          setEditingTherapist(null);
+                          setShowTherapistForm(true);
+                        }}
+                        className="bg-brown-600 text-white px-4 py-2 rounded-md hover:bg-brown-700"
+                      >
+                        Add First Therapist
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -1003,103 +1291,136 @@ const AdminPanel = () => {
                 <h3 className="text-lg font-medium text-gray-900">
                   Contact Information ({contacts.length} items)
                 </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Drag contacts up/down to reorder them. Lower numbers appear
+                  first.
+                </p>
               </div>
 
               <div className="divide-y divide-gray-200">
-                {contacts.map((contact) => (
-                  <div
-                    key={contact._id}
-                    className="px-6 py-4 flex items-center justify-between hover:bg-gray-50"
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div
-                        className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
-                          contact.type === "phone"
-                            ? "bg-blue-100 text-blue-600"
-                            : contact.type === "whatsapp"
-                            ? "bg-green-100 text-green-600"
-                            : contact.type === "viber"
-                            ? "bg-purple-100 text-purple-600"
-                            : contact.type === "wechat"
-                            ? "bg-green-100 text-green-600"
-                            : contact.type === "telegram"
-                            ? "bg-blue-100 text-blue-600"
-                            : contact.type === "email"
-                            ? "bg-red-100 text-red-600"
-                            : "bg-gray-100 text-gray-600"
-                        }`}
-                      >
-                        <FaPhone size={16} />
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2">
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {contact.label}
-                          </p>
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              contact.isActive
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
-                            }`}
+                {contacts
+                  .sort((a, b) => a.order - b.order)
+                  .map((contact, index) => (
+                    <div
+                      key={contact._id}
+                      className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center space-x-4">
+                        <div className="flex flex-col items-center space-y-1">
+                          <button
+                            onClick={() => moveContactUp(contact._id)}
+                            disabled={index === 0}
+                            className={`p-1 rounded ${
+                              index === 0
+                                ? "text-gray-300 cursor-not-allowed"
+                                : "text-gray-500 hover:text-blue-600 hover:bg-blue-50"
+                            } transition-colors`}
+                            title="Move up"
                           >
-                            {contact.isActive ? "Active" : "Inactive"}
+                            <FaArrowUp size={12} />
+                          </button>
+                          <span className="text-xs text-gray-400 font-mono">
+                            {contact.order}
                           </span>
+                          <button
+                            onClick={() => moveContactDown(contact._id)}
+                            disabled={index === contacts.length - 1}
+                            className={`p-1 rounded ${
+                              index === contacts.length - 1
+                                ? "text-gray-300 cursor-not-allowed"
+                                : "text-gray-500 hover:text-blue-600 hover:bg-blue-50"
+                            } transition-colors`}
+                            title="Move down"
+                          >
+                            <FaArrowDown size={12} />
+                          </button>
                         </div>
 
-                        <div className="flex items-center space-x-4 mt-1">
-                          <p className="text-sm text-gray-600 truncate">
-                            {contact.value}
-                          </p>
-                          <span className="text-xs text-gray-400 uppercase">
-                            {contact.type}
-                          </span>
-                          <span className="text-xs text-gray-400">
-                            Order: {contact.order}
-                          </span>
+                        <div
+                          className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                            contact.type === "phone"
+                              ? "bg-blue-100 text-blue-600"
+                              : contact.type === "whatsapp"
+                              ? "bg-green-100 text-green-600"
+                              : contact.type === "viber"
+                              ? "bg-purple-100 text-purple-600"
+                              : contact.type === "wechat"
+                              ? "bg-green-100 text-green-600"
+                              : contact.type === "telegram"
+                              ? "bg-blue-100 text-blue-600"
+                              : contact.type === "email"
+                              ? "bg-red-100 text-red-600"
+                              : "bg-gray-100 text-gray-600"
+                          }`}
+                        >
+                          <FaPhone size={16} />
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {contact.label}
+                            </p>
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                contact.isActive
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              {contact.isActive ? "Active" : "Inactive"}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center space-x-4 mt-1">
+                            <p className="text-sm text-gray-600 truncate">
+                              {contact.value}
+                            </p>
+                            <span className="text-xs text-gray-400 uppercase bg-gray-100 px-2 py-1 rounded">
+                              {contact.type}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => {
-                          setEditingContact(contact);
-                          setShowContactForm(true);
-                        }}
-                        className="text-brown-600 hover:text-brown-700 p-2"
-                        title="Edit Contact"
-                      >
-                        <FaEdit size={14} />
-                      </button>
-                      <button
-                        onClick={() => toggleContactStatus(contact._id)}
-                        className={`p-2 ${
-                          contact.isActive
-                            ? "text-yellow-600 hover:text-yellow-700"
-                            : "text-green-600 hover:text-green-700"
-                        }`}
-                        title={
-                          contact.isActive ? "Hide Contact" : "Show Contact"
-                        }
-                      >
-                        {contact.isActive ? (
-                          <FaEyeSlash size={14} />
-                        ) : (
-                          <FaEye size={14} />
-                        )}
-                      </button>
-                      <button
-                        onClick={() => deleteContact(contact._id)}
-                        className="text-red-600 hover:text-red-700 p-2"
-                        title="Delete Contact"
-                      >
-                        <FaTrash size={14} />
-                      </button>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => {
+                            setEditingContact(contact);
+                            setShowContactForm(true);
+                          }}
+                          className="text-brown-600 hover:text-brown-700 p-2 hover:bg-brown-50 rounded transition-colors"
+                          title="Edit Contact"
+                        >
+                          <FaEdit size={14} />
+                        </button>
+                        <button
+                          onClick={() => toggleContactStatus(contact._id)}
+                          className={`p-2 rounded transition-colors ${
+                            contact.isActive
+                              ? "text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
+                              : "text-green-600 hover:text-green-700 hover:bg-green-50"
+                          }`}
+                          title={
+                            contact.isActive ? "Hide Contact" : "Show Contact"
+                          }
+                        >
+                          {contact.isActive ? (
+                            <FaEyeSlash size={14} />
+                          ) : (
+                            <FaEye size={14} />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => deleteContact(contact._id)}
+                          className="text-red-600 hover:text-red-700 p-2 hover:bg-red-50 rounded transition-colors"
+                          title="Delete Contact"
+                        >
+                          <FaTrash size={14} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
 
                 {/* Empty State */}
                 {contacts.length === 0 && (

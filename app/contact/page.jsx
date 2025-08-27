@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
-import { useContacts } from "../../hooks/useContacts";
 
 // Note: metadata should be in a separate file for client components
 // or moved to a parent server component
@@ -23,24 +22,13 @@ import { SiWechat, SiLine } from "react-icons/si";
 const Contact = () => {
   const [selectedService, setSelectedService] = useState("Nuru Massage");
 
-  const {
-    getPrimaryPhone,
-    getPrimaryEmail,
-    getWhatsAppNumber,
-    getViberNumber,
-    getTelegramContact,
-    getWeChatContact,
-    loading,
-    error,
-  } = useContacts({ autoFetch: false });
-
-  // Get contact numbers with fallbacks
-  const phoneNumber = getPrimaryPhone() || "+639274736260";
-  const emailAddress = getPrimaryEmail() || "miracletouchspa2@gmail.com";
-  const whatsappNumber = getWhatsAppNumber() || phoneNumber;
-  const viberNumber = getViberNumber() || phoneNumber;
-  const telegramContact = getTelegramContact() || "MNGN12";
-  const wechatContact = getWeChatContact() || "09274736260";
+  // Hardcoded contact info for better performance - no API calls needed
+  const phoneNumber = "+639274736260";
+  const emailAddress = "miracletouchspa2@gmail.com";
+  const whatsappNumber = phoneNumber;
+  const viberNumber = phoneNumber;
+  const telegramContact = "MNGN12";
+  const wechatContact = "09274736260";
 
   const services = [
     "Nuru Massage",

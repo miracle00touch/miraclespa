@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { FaPaperPlane, FaTimes, FaSpinner } from "react-icons/fa";
+import { FaPaperPlane, FaTimes } from "react-icons/fa";
 import emailjs from "@emailjs/browser";
 import ReCAPTCHA from "react-google-recaptcha";
 
@@ -133,7 +133,7 @@ const Message = () => {
                   aria-label="Send Message"
                 >
                   {isLoading ? (
-                    <FaSpinner className="animate-spin text-white" />
+                    <div className="w-5 h-5 bg-white/30 rounded animate-pulse"></div>
                   ) : (
                     "Send Message"
                   )}

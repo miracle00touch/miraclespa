@@ -3,16 +3,11 @@
 import { FaFacebook, FaEnvelope } from "react-icons/fa";
 import Link from "next/link";
 import Image from "next/image";
-import { useContacts } from "../hooks/useContacts";
 
 export default function HomePage() {
-  const { getPrimaryPhone, getPrimaryEmail, loading, error } = useContacts({
-    autoFetch: true, // Changed to true to load contacts automatically
-  });
-
-  // Get contact info with fallbacks
-  const phoneNumber = getPrimaryPhone() || "(+63) 927 473 6260";
-  const emailAddress = getPrimaryEmail() || "miracletouchspa2@gmail.com";
+  // Hardcoded contact info for better performance - no API calls on homepage
+  const phoneNumber = "(+63) 927 473 6260";
+  const emailAddress = "miracletouchspa2@gmail.com";
   return (
     <div className="relative flex flex-col items-center justify-center min-h-screen bg-[#f8f3eb] text-gray-800">
       {/* Background Image */}
@@ -21,6 +16,7 @@ export default function HomePage() {
           src="/images/pexels-spa-home.jpg"
           alt="Spa Background"
           fill
+          priority={true}
           sizes="100vw"
           className="opacity-40 object-cover w-full h-full"
         />

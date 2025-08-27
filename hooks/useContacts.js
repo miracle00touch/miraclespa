@@ -2,14 +2,10 @@
 
 import { useState, useEffect } from "react";
 
-// Module-scoped cache + dedupe promise so multiple components won't trigger
-// parallel requests and can reuse results. This reduces load on serverless
-// endpoints (and cold starts) when many clients hydrate at once.
-const CACHE_KEY = "miracle_contacts_cache_v1";
-let contactsCache = null;
-let cacheTs = 0;
+// Keep a module-scoped pendingPromise to dedupe concurrent fetches,
+// but do not store results in memory or sessionStorage so admin updates
+// are reflected immediately.
 let pendingPromise = null;
-const CACHE_TTL = 2 * 60 * 1000; // Reduced to 2 minutes for admin responsiveness
 
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 
@@ -33,7 +29,6 @@ export const useContacts = (options = { autoFetch: true }) => {
         clearTimeout(timer);
 
         if (!res.ok) {
-          // Retry on 5xx
           if (res.status >= 500 && attempt < maxRetries) {
             lastError = new Error(`HTTP ${res.status}`);
             const backoff =
@@ -41,7 +36,6 @@ export const useContacts = (options = { autoFetch: true }) => {
             await sleep(backoff);
             continue;
           }
-          // non-retryable error
           const text = await res.text().catch(() => "");
           throw new Error(`HTTP ${res.status} ${text}`);
         }
@@ -55,7 +49,6 @@ export const useContacts = (options = { autoFetch: true }) => {
         return data;
       } catch (err) {
         clearTimeout(timer);
-        // AbortError or network error: retry if attempts left
         lastError = err;
         if (attempt < maxRetries) {
           const backoff =
@@ -69,70 +62,26 @@ export const useContacts = (options = { autoFetch: true }) => {
     throw lastError;
   };
 
-  // Public fetchContacts that uses module cache and deduping promise
+  // Public fetchContacts that always queries the server (deduped)
   const fetchContacts = async (opts = {}) => {
-    // return cached data if still fresh
     try {
       setLoading(true);
       setError(null);
 
-      // check in-memory cache first
-      const now = Date.now();
-      if (contactsCache && now - cacheTs < CACHE_TTL) {
-        setContacts(contactsCache);
-        return contactsCache;
-      }
-
-      // check sessionStorage as a cold start fallback
-      try {
-        const raw = sessionStorage.getItem(CACHE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (
-            parsed &&
-            parsed.ts &&
-            parsed.data &&
-            now - parsed.ts < CACHE_TTL
-          ) {
-            contactsCache = parsed.data;
-            cacheTs = parsed.ts;
-            setContacts(contactsCache);
-            return contactsCache;
-          }
-        }
-      } catch (err) {
-        // ignore storage errors
-      }
-
-      // If a request is already in flight, wait for it (dedupe)
       if (pendingPromise) {
         const result = await pendingPromise;
         setContacts(result);
         return result;
       }
 
-      // Start the network request and store the pending promise
       pendingPromise = (async () => {
         try {
           const data = await fetchWithRetries("/api/contacts", opts);
           if (data && data.success) {
-            contactsCache = data.data || [];
-            cacheTs = Date.now();
-            // persist to sessionStorage for route navigations / reloads
-            try {
-              sessionStorage.setItem(
-                CACHE_KEY,
-                JSON.stringify({ ts: cacheTs, data: contactsCache })
-              );
-            } catch (err) {
-              // ignore storage write errors
-            }
-            return contactsCache;
+            return data.data || [];
           }
-          // server responded but indicated failure
           throw new Error((data && data.error) || "Failed to fetch contacts");
         } finally {
-          // clear pendingPromise so subsequent calls can start a new request when needed
           pendingPromise = null;
         }
       })();
@@ -153,80 +102,50 @@ export const useContacts = (options = { autoFetch: true }) => {
   // Auto-fetch on mount unless explicitly disabled
   useEffect(() => {
     if (autoFetch) {
-      // fire-and-ignore errors on mount (components can call fetchContacts explicitly)
       fetchContacts().catch(() => {});
     }
-    // intentionally no dependencies; autoFetch is stable for callers
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Helper function to get contact by type
-  const getContactByType = (type) => {
-    return contacts.find(
-      (contact) => contact.type === type && contact.isActive
-    );
-  };
-
-  // Helper function to get all contacts of a specific type
-  const getContactsByType = (type) => {
-    return contacts.filter(
-      (contact) => contact.type === type && contact.isActive
-    );
-  };
-
-  // Helper function to get primary phone number
+  // Helper functions
+  const getContactByType = (type) =>
+    contacts.find((c) => c.type === type && c.isActive);
+  const getContactsByType = (type) =>
+    contacts.filter((c) => c.type === type && c.isActive);
   const getPrimaryPhone = () => {
     const phoneContact = getContactByType("phone");
     return phoneContact ? phoneContact.value : null;
   };
-
-  // Helper function to get primary email
   const getPrimaryEmail = () => {
     const emailContact = getContactByType("email");
     return emailContact ? emailContact.value : null;
   };
-
-  // Helper function to get WhatsApp number
   const getWhatsAppNumber = () => {
     const whatsappContact = getContactByType("whatsapp");
     return whatsappContact ? whatsappContact.value : null;
   };
-
-  // Helper function to get Viber number
   const getViberNumber = () => {
     const viberContact = getContactByType("viber");
     return viberContact ? viberContact.value : null;
   };
-
-  // Helper function to get Telegram contact
   const getTelegramContact = () => {
     const telegramContact = getContactByType("telegram");
     return telegramContact ? telegramContact.value : null;
   };
-
-  // Helper function to get WeChat contact
   const getWeChatContact = () => {
     const wechatContact = getContactByType("wechat");
     return wechatContact ? wechatContact.value : null;
   };
-
-  // Helper function to get address
   const getAddress = () => {
     const addressContact = getContactByType("address");
     return addressContact ? addressContact.value : null;
   };
 
-  // Function to manually invalidate cache (useful for admin operations)
+  // Invalidate cache (noop for now, clears pending promise)
   const invalidateCache = () => {
-    contactsCache = null;
-    cacheTs = 0;
     pendingPromise = null;
-    try {
-      sessionStorage.removeItem(CACHE_KEY);
-    } catch (e) {
-      // ignore storage errors
-    }
-    console.log("Contacts cache invalidated manually");
+    setContacts([]);
+    console.log("Contacts cache invalidated (client)");
   };
 
   return {
@@ -242,9 +161,7 @@ export const useContacts = (options = { autoFetch: true }) => {
     getTelegramContact,
     getWeChatContact,
     getAddress,
-    // allow consumers to trigger fetch manually when they opted out of autoFetch
     fetchContacts,
-    // allow consumers to invalidate cache manually
     invalidateCache,
   };
 };

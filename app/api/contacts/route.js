@@ -2,29 +2,13 @@ import connectDB from "@/lib/mongodb";
 import Contact from "@/models/Contact";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { invalidateContactsCache } from "@/lib/cache";
 
-// Per-instance cache to avoid hitting DB on repeated requests to the same
-// serverless instance. This helps reduce cold starts and DB pressure.
-let cachedContacts = null;
-let cacheTs = 0;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-const CACHE_CONTROL_HEADER = "public, s-maxage=300, stale-while-revalidate=60";
+// For contacts we do NOT keep per-instance caching — always return fresh data
+const CACHE_CONTROL_HEADER = "no-store";
 
 // GET - Fetch all contacts (public - for displaying contact info)
 export async function GET() {
-  // Return cached response quickly when fresh
-  try {
-    const now = Date.now();
-    if (cachedContacts && now - cacheTs < CACHE_TTL) {
-      return NextResponse.json(
-        { success: true, data: cachedContacts, cached: true },
-        { headers: { "Cache-Control": CACHE_CONTROL_HEADER } }
-      );
-    }
-  } catch (cacheErr) {
-    // ignore cache read errors and continue to fetch
-  }
-
   try {
     // Add small random delay to stagger simultaneous requests
     const delay = Math.random() * 800; // 0-0.8 second
@@ -46,13 +30,6 @@ export async function GET() {
     try {
       const contacts = await Promise.race([dbOperation(), timeoutPromise]);
       // store in per-instance cache
-      try {
-        cachedContacts = contacts;
-        cacheTs = Date.now();
-      } catch (err) {
-        // ignore cache write errors
-      }
-
       return NextResponse.json(
         { success: true, data: contacts },
         { headers: { "Cache-Control": CACHE_CONTROL_HEADER } }
@@ -79,14 +56,6 @@ export async function GET() {
           icon: "facebook",
         },
       ];
-
-      // also place fallback in cache for short period
-      try {
-        cachedContacts = fallbackContacts;
-        cacheTs = Date.now();
-      } catch (err) {
-        // ignore cache write errors
-      }
 
       return NextResponse.json(
         {

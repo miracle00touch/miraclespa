@@ -1,6 +1,8 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
+import TherapistImageLoader from "../../components/TherapistImageLoader";
+import PublicTherapistSkeleton from "../../components/PublicTherapistSkeleton";
 import { useContacts } from "../../hooks/useContacts";
 import {
   FaTimes,
@@ -20,15 +22,12 @@ const Male = () => {
   const [selectedTherapist, setSelectedTherapist] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [massagers, setMassagers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoadingData, setIsLoadingData] = useState(true);
   const [error, setError] = useState(null);
-  const [loadingStarted, setLoadingStarted] = useState(false); // Prevent duplicate calls
 
-  const {
-    getPrimaryPhone,
-    getWhatsAppNumber,
-    loading: contactsLoading,
-  } = useContacts({ autoFetch: true }); // Changed to auto-fetch
+  const { getPrimaryPhone, getWhatsAppNumber } = useContacts({
+    autoFetch: true,
+  });
 
   // Get contact info with fallbacks
   const phoneNumber = getPrimaryPhone() || "+639274736260";
@@ -36,23 +35,20 @@ const Male = () => {
 
   // Load male therapists from API
   useEffect(() => {
-    if (!loadingStarted) {
-      setLoadingStarted(true);
-      loadTherapists();
-    }
-  }, [loadingStarted]);
+    loadTherapists();
+  }, []);
 
   const loadTherapists = async () => {
     try {
-      setLoading(true);
       setError(null);
+      setIsLoadingData(true);
 
-      // Add slight delay to avoid cold start issues
-      await new Promise((resolve) => setTimeout(resolve, 150));
+      // Small delay to ensure skeleton is visible
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       const response = await fetch("/api/therapists?gender=male&active=true", {
         headers: {
-          "Cache-Control": "public, max-age=300, stale-while-revalidate=60",
+          "Cache-Control": "no-store",
         },
       });
 
@@ -70,7 +66,7 @@ const Male = () => {
       console.error("Error loading therapists:", err);
       setError(`Failed to load therapists: ${err.message}`);
     } finally {
-      setLoading(false);
+      setIsLoadingData(false);
     }
   };
 
@@ -249,17 +245,7 @@ const Male = () => {
     );
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#f3e7d1] flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brown-600 mx-auto"></div>
-          <p className="mt-4 text-brown-700">Loading therapists...</p>
-        </div>
-      </div>
-    );
-  }
-
+  // Show error state
   if (error) {
     return (
       <div className="min-h-screen bg-[#f3e7d1] flex items-center justify-center">
@@ -276,6 +262,11 @@ const Male = () => {
     );
   }
 
+  // While fetching, show the page-level skeleton to keep layout stable
+  if (isLoadingData) {
+    return <PublicTherapistSkeleton />;
+  }
+
   return (
     <div className="min-h-screen bg-[#f3e7d1] py-10 px-4 sm:px-6 lg:px-8">
       <h1 className="text-4xl md:text-5xl font-semibold font-serif mb-6 md:mb-8 text-center text-brown-800">
@@ -290,76 +281,88 @@ const Male = () => {
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-        {massagers.map((massager) => (
-          <div
-            key={massager._id || massager.id}
-            onClick={() => openModal(massager)}
-            className="bg-white shadow-lg rounded-lg overflow-hidden transform hover:scale-105 transition-all duration-300 cursor-pointer hover:shadow-2xl group"
-          >
-            <div className="relative w-full h-56 overflow-hidden">
-              <Image
-                src={massager.images[0]}
-                alt={massager.name}
-                fill
-                sizes="(max-width: 640px) 100vw,
-                       (max-width: 1024px) 50vw,
-                       (max-width: 1280px) 25vw,
-                       20vw"
-                className="object-cover h-full w-full group-hover:scale-110 transition-transform duration-500"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="absolute bottom-4 left-4 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <div className="flex items-center space-x-2">
-                  <FaStar className="text-yellow-400" />
-                  <span className="font-semibold">{massager.rating}</span>
-                  <span className="text-sm">({massager.reviews} reviews)</span>
+        {massagers.length === 0 ? (
+          <div className="col-span-full text-center py-20">
+            <p className="text-gray-600 text-lg">No therapists found.</p>
+            <button
+              onClick={loadTherapists}
+              className="mt-4 bg-brown-600 text-white px-4 py-2 rounded-md hover:bg-brown-700"
+            >
+              Retry
+            </button>
+          </div>
+        ) : (
+          massagers.map((massager) => (
+            <div
+              key={massager._id || massager.id}
+              onClick={() => openModal(massager)}
+              className="bg-white shadow-lg rounded-lg overflow-hidden transform hover:scale-105 transition-all duration-300 cursor-pointer hover:shadow-2xl group"
+            >
+              <div className="relative w-full h-56 overflow-hidden">
+                <TherapistImageLoader
+                  src={massager.images[0]}
+                  alt={massager.name}
+                  className="h-full w-full group-hover:scale-110 transition-transform duration-500"
+                  fill={true}
+                  fallbackIcon={true}
+                  showSkeleton={false}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="absolute bottom-4 left-4 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <div className="flex items-center space-x-2">
+                    <FaStar className="text-yellow-400" />
+                    <span className="font-semibold">{massager.rating}</span>
+                    <span className="text-sm">
+                      ({massager.reviews} reviews)
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="p-4">
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="text-xl font-semibold text-gray-800">
+                    {massager.name}
+                  </h3>
+                  <span className="text-brown-600 font-medium text-sm">
+                    {massager.age} years
+                  </span>
+                </div>
+                <div className="flex items-center text-sm text-gray-600 mb-2">
+                  <FaMapMarkerAlt className="mr-1" />
+                  <span>{massager.location}</span>
+                  <span className="mx-2">•</span>
+                  <span>{massager.experience} exp</span>
+                </div>
+                <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                  {massager.description}
+                </p>
+                <div className="flex flex-wrap gap-1 mb-3">
+                  {massager.specialties.slice(0, 2).map((specialty, index) => (
+                    <span
+                      key={index}
+                      className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs"
+                    >
+                      {specialty}
+                    </span>
+                  ))}
+                  {massager.specialties.length > 2 && (
+                    <span className="text-blue-600 text-xs">
+                      +{massager.specialties.length - 2} more
+                    </span>
+                  )}
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-brown-800 font-bold">
+                    {massager.price}
+                  </span>
+                  <button className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-full text-sm transition-colors">
+                    View Profile
+                  </button>
                 </div>
               </div>
             </div>
-            <div className="p-4">
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="text-xl font-semibold text-gray-800">
-                  {massager.name}
-                </h3>
-                <span className="text-brown-600 font-medium text-sm">
-                  {massager.age} years
-                </span>
-              </div>
-              <div className="flex items-center text-sm text-gray-600 mb-2">
-                <FaMapMarkerAlt className="mr-1" />
-                <span>{massager.location}</span>
-                <span className="mx-2">•</span>
-                <span>{massager.experience} exp</span>
-              </div>
-              <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                {massager.description}
-              </p>
-              <div className="flex flex-wrap gap-1 mb-3">
-                {massager.specialties.slice(0, 2).map((specialty, index) => (
-                  <span
-                    key={index}
-                    className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs"
-                  >
-                    {specialty}
-                  </span>
-                ))}
-                {massager.specialties.length > 2 && (
-                  <span className="text-blue-600 text-xs">
-                    +{massager.specialties.length - 2} more
-                  </span>
-                )}
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-brown-800 font-bold">
-                  {massager.price}
-                </span>
-                <button className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-full text-sm transition-colors">
-                  View Profile
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       {/* Modal */}
@@ -376,13 +379,15 @@ const Male = () => {
 
               {/* Header with Image */}
               <div className="relative h-80 md:h-96 group">
-                <Image
+                <TherapistImageLoader
                   src={selectedTherapist.images[currentImageIndex]}
                   alt={`${selectedTherapist.name} - Photo ${
                     currentImageIndex + 1
                   }`}
-                  fill
-                  className="object-cover rounded-t-lg"
+                  className="rounded-t-lg"
+                  fill={true}
+                  fallbackIcon={true}
+                  showSkeleton={false}
                 />
 
                 {/* Image Navigation - only show if multiple images */}
@@ -450,13 +455,15 @@ const Male = () => {
                             : "border-gray-300 hover:border-blue-300"
                         }`}
                       >
-                        <Image
+                        <TherapistImageLoader
                           src={image}
                           alt={`${selectedTherapist.name} - Thumbnail ${
                             index + 1
                           }`}
-                          fill
-                          className="object-cover"
+                          className=""
+                          fill={true}
+                          fallbackIcon={false}
+                          showSkeleton={false}
                         />
                       </button>
                     ))}

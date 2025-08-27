@@ -1,13 +1,31 @@
 // app/loading.js
 
+"use client";
+
+import { usePathname } from "next/navigation";
+import PublicTherapistSkeleton from "../components/PublicTherapistSkeleton";
+import ServiceCardSkeleton from "../components/ServiceCardSkeleton";
+
 export default function Loading() {
-  // Simple loading component that only shows when Next.js actually needs it
+  // Show the page-level therapist skeleton when navigating to /female or /male.
+  // For all other routes render a minimal, non-blocking indicator so users
+  // have feedback but the UI won't be dominated by a full-page funnel.
+  const pathname = usePathname();
+
+  if (
+    pathname &&
+    (pathname.startsWith("/female") || pathname.startsWith("/male"))
+  ) {
+    return <PublicTherapistSkeleton />;
+  }
+
+  if (pathname && pathname.startsWith("/services")) {
+    return <ServiceCardSkeleton />;
+  }
+
   return (
-    <div className="min-h-[50vh] bg-white flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-12 h-12 border-3 border-brown-200 border-t-brown-600 rounded-full animate-spin mx-auto mb-3" />
-        <p className="text-brown-600 text-sm font-medium">Loading...</p>
-      </div>
+    <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50">
+      <div className="h-2 w-28 bg-gray-300 rounded animate-pulse" />
     </div>
   );
 }
