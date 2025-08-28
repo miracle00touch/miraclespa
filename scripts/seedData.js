@@ -380,6 +380,13 @@ const contacts = [
     isActive: true,
     order: 5,
   },
+  {
+    type: "email",
+    label: "Email",
+    value: "info@miracletouchspa.com",
+    isActive: true,
+    order: 6,
+  },
 ];
 
 const services = [

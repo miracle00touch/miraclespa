@@ -5,6 +5,7 @@ import Image from "next/image";
 import ServiceForm from "../../components/ServiceForm";
 import TherapistForm from "../../components/TherapistForm";
 import ContactForm from "../../components/ContactForm";
+import ConfirmationModal from "../../components/ConfirmationModal";
 import TherapistImageLoader from "../../components/TherapistImageLoader";
 import TherapistCardSkeleton from "../../components/TherapistCardSkeleton";
 import AdminLoadingSkeleton from "../../components/AdminLoadingSkeleton";
@@ -24,8 +25,7 @@ import {
   FaSignOutAlt,
   FaLock,
   FaShieldAlt,
-  FaArrowUp,
-  FaArrowDown,
+  FaEnvelope,
 } from "react-icons/fa";
 
 // Enhanced Login Form Component
@@ -190,6 +190,8 @@ const EnhancedLoginForm = ({ onLogin }) => {
 };
 
 const AdminPanel = () => {
+  // Track if data has loaded after authentication
+  const hasLoaded = React.useRef(false);
   const {
     isAuthenticated,
     loading: authLoading,
@@ -228,6 +230,16 @@ const AdminPanel = () => {
     operations: new Set(), // Track individual operation IDs
   });
 
+  // Confirmation modal states
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "Confirm",
+    onConfirm: null,
+    type: "danger",
+  });
+
   // Helper functions to manage loading states
   const addOperation = (operationId) => {
     setLoadingStates((prev) => ({
@@ -244,6 +256,35 @@ const AdminPanel = () => {
         ...prev,
         operations: newOperations,
       };
+    });
+  };
+
+  // Confirmation modal helpers
+  const showConfirmation = (
+    title,
+    message,
+    onConfirm,
+    confirmText = "Delete",
+    type = "danger"
+  ) => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      confirmText,
+      onConfirm,
+      type,
+    });
+  };
+
+  const hideConfirmation = () => {
+    setConfirmModal({
+      isOpen: false,
+      title: "",
+      message: "",
+      confirmText: "Confirm",
+      onConfirm: null,
+      type: "danger",
     });
   };
 
@@ -318,7 +359,8 @@ const AdminPanel = () => {
 
   const loadContacts = useCallback(async () => {
     try {
-      const response = await fetch("/api/contacts");
+      // Use admin=true parameter to get ALL contacts (active and inactive)
+      const response = await fetch("/api/contacts?admin=true");
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -351,8 +393,14 @@ const AdminPanel = () => {
   }, [loadContacts, loadServices, loadTherapists]);
 
   useEffect(() => {
-    if (isAuthenticated && !authLoading) {
+    // Only run loadAllData once after authentication is confirmed
+    if (isAuthenticated && !authLoading && !hasLoaded.current) {
       loadAllData();
+      hasLoaded.current = true;
+    }
+    // Reset hasLoaded if user logs out
+    if (!isAuthenticated) {
+      hasLoaded.current = false;
     }
   }, [isAuthenticated, authLoading, loadAllData]);
 
@@ -425,30 +473,40 @@ const AdminPanel = () => {
   };
 
   const deleteService = async (id) => {
-    if (confirm("Are you sure you want to delete this service?")) {
-      try {
-        // Optimistically remove from UI
-        const originalServices = [...services];
-        setServices(services.filter((s) => s._id !== id));
+    const service = services.find((s) => s._id === id);
+    if (!service) return;
 
-        const response = await fetch(`/api/services/${id}`, {
-          method: "DELETE",
-          credentials: "include",
-        });
-        const data = await response.json();
-        if (data.success) {
-          toast.success("Service deleted successfully");
-        } else {
-          // Revert on failure
-          setServices(originalServices);
-          toast.error(data.message || "Failed to delete service");
+    showConfirmation(
+      "Delete Service",
+      `Are you sure you want to delete "${service.name}"? This action cannot be undone.`,
+      async () => {
+        try {
+          // Optimistically remove from UI
+          const originalServices = [...services];
+          setServices(services.filter((s) => s._id !== id));
+
+          const response = await fetch(`/api/services/${id}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+          const data = await response.json();
+          if (data.success) {
+            toast.success("Service deleted successfully");
+          } else {
+            // Revert on failure
+            setServices(originalServices);
+            toast.error(data.message || "Failed to delete service");
+          }
+        } catch (error) {
+          // Revert on error
+          setServices(services);
+          toast.error("Failed to delete service");
         }
-      } catch (error) {
-        // Revert on error
-        setServices(services);
-        toast.error("Failed to delete service");
-      }
-    }
+        hideConfirmation();
+      },
+      "Delete",
+      "danger"
+    );
   };
 
   // Therapist CRUD functions
@@ -504,30 +562,40 @@ const AdminPanel = () => {
   };
 
   const deleteTherapist = async (id) => {
-    if (confirm("Are you sure you want to delete this therapist?")) {
-      try {
-        // Optimistically remove from UI
-        const originalTherapists = [...therapists];
-        setTherapists(therapists.filter((t) => t._id !== id));
+    const therapist = therapists.find((t) => t._id === id);
+    if (!therapist) return;
 
-        const response = await fetch(`/api/therapists/${id}`, {
-          method: "DELETE",
-          credentials: "include",
-        });
-        const data = await response.json();
-        if (data.success) {
-          toast.success("Therapist deleted successfully");
-        } else {
-          // Revert on failure
-          setTherapists(originalTherapists);
-          toast.error(data.message || "Failed to delete therapist");
+    showConfirmation(
+      "Delete Therapist",
+      `Are you sure you want to delete "${therapist.name}"? This action cannot be undone.`,
+      async () => {
+        try {
+          // Optimistically remove from UI
+          const originalTherapists = [...therapists];
+          setTherapists(therapists.filter((t) => t._id !== id));
+
+          const response = await fetch(`/api/therapists/${id}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+          const data = await response.json();
+          if (data.success) {
+            toast.success("Therapist deleted successfully");
+          } else {
+            // Revert on failure
+            setTherapists(originalTherapists);
+            toast.error(data.message || "Failed to delete therapist");
+          }
+        } catch (error) {
+          // Revert on error
+          setTherapists(therapists);
+          toast.error("Failed to delete therapist");
         }
-      } catch (error) {
-        // Revert on error
-        setTherapists(therapists);
-        toast.error("Failed to delete therapist");
-      }
-    }
+        hideConfirmation();
+      },
+      "Delete",
+      "danger"
+    );
   };
 
   const toggleTherapistStatus = async (id) => {
@@ -565,67 +633,38 @@ const AdminPanel = () => {
     }
   };
 
-  const updateTherapistGender = async (id, newGender) => {
-    try {
-      const therapist = therapists.find((t) => t._id === id);
-      if (!therapist) return;
-
-      // Optimistically update UI
-      const optimisticUpdate = therapists.map((t) =>
-        t._id === id ? { ...t, gender: newGender } : t
-      );
-      setTherapists(optimisticUpdate);
-
-      const response = await fetch(`/api/therapists/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ ...therapist, gender: newGender }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        setTherapists(therapists.map((t) => (t._id === id ? data.data : t)));
-        toast.success(`Therapist gender updated to ${newGender}`);
-      } else {
-        // Revert on failure
-        setTherapists(therapists);
-        toast.error(data.message || "Failed to update therapist gender");
-      }
-    } catch (error) {
-      // Revert on error
-      setTherapists(therapists);
-      toast.error("Failed to update therapist gender");
-    }
-  };
-
   // Contact CRUD functions
   const saveContact = async (contactData) => {
+    console.log("🟡 AdminPanel: saveContact called with:", contactData);
     try {
       if (editingContact) {
-        // Optimistically update UI
-        const optimisticUpdate = contacts.map((c) =>
-          c._id === contactData._id ? { ...c, ...contactData } : c
-        );
-        setContacts(optimisticUpdate);
-
+        // PUT request to update contact
         const response = await fetch(`/api/contacts/${contactData._id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify(contactData),
         });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
         const data = await response.json();
         if (data.success) {
+          // Update only contacts state
           setContacts(
             contacts.map((c) => (c._id === contactData._id ? data.data : c))
           );
           toast.success("Contact updated successfully");
+          // Close the form/modal
+          setShowContactForm(false);
+          setEditingContact(null);
+          return data;
         } else {
-          // Revert on failure
-          setContacts(contacts);
           toast.error(data.message || "Failed to update contact");
+          throw new Error(data.message || "Failed to update contact");
         }
       } else {
+        console.log("AdminPanel: Creating new contact...");
         const response = await fetch("/api/contacts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -636,45 +675,58 @@ const AdminPanel = () => {
         if (data.success) {
           setContacts([...contacts, data.data]);
           toast.success("Contact created successfully");
+          // Don't close form here - let ContactForm handle it
+          return data; // Return success data
         } else {
           toast.error(data.message || "Failed to create contact");
+          throw new Error(data.message || "Failed to create contact");
         }
       }
-      setEditingContact(null);
-      setShowContactForm(false);
     } catch (error) {
+      console.error("AdminPanel: Error in saveContact:", error);
       if (editingContact) {
         setContacts(contacts);
       }
       toast.error("Failed to save contact");
+      throw error; // Re-throw to let the form handle the error
     }
   };
 
   const deleteContact = async (id) => {
-    if (confirm("Are you sure you want to delete this contact?")) {
-      try {
-        // Optimistically remove from UI
-        const originalContacts = [...contacts];
-        setContacts(contacts.filter((c) => c._id !== id));
+    const contact = contacts.find((c) => c._id === id);
+    if (!contact) return;
 
-        const response = await fetch(`/api/contacts/${id}`, {
-          method: "DELETE",
-          credentials: "include",
-        });
-        const data = await response.json();
-        if (data.success) {
-          toast.success("Contact deleted successfully");
-        } else {
-          // Revert on failure
-          setContacts(originalContacts);
-          toast.error(data.message || "Failed to delete contact");
+    showConfirmation(
+      "Delete Contact",
+      `Are you sure you want to delete "${contact.label}"? This action cannot be undone.`,
+      async () => {
+        try {
+          // Optimistically remove from UI
+          const originalContacts = [...contacts];
+          setContacts(contacts.filter((c) => c._id !== id));
+
+          const response = await fetch(`/api/contacts/${id}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+          const data = await response.json();
+          if (data.success) {
+            toast.success("Contact deleted successfully");
+          } else {
+            // Revert on failure
+            setContacts(originalContacts);
+            toast.error(data.message || "Failed to delete contact");
+          }
+        } catch (error) {
+          // Revert on error
+          setContacts(contacts);
+          toast.error("Failed to delete contact");
         }
-      } catch (error) {
-        // Revert on error
-        setContacts(contacts);
-        toast.error("Failed to delete contact");
-      }
-    }
+        hideConfirmation();
+      },
+      "Delete",
+      "danger"
+    );
   };
 
   const toggleContactStatus = async (id) => {
@@ -698,8 +750,17 @@ const AdminPanel = () => {
       if (data.success) {
         setContacts(contacts.map((c) => (c._id === id ? data.data : c)));
         toast.success(
-          `Contact ${data.data.isActive ? "activated" : "deactivated"}`
+          `Contact ${
+            data.data.isActive ? "activated" : "deactivated"
+          } successfully`
         );
+
+        // Force refresh of public contact data by clearing any client cache
+        if (typeof window !== "undefined") {
+          // Clear any cached contact data on the client
+          const publicContactsEvent = new CustomEvent("contactsUpdated");
+          window.dispatchEvent(publicContactsEvent);
+        }
       } else {
         // Revert on failure
         setContacts(contacts);
@@ -709,103 +770,6 @@ const AdminPanel = () => {
       // Revert on error
       setContacts(contacts);
       toast.error("Failed to update contact status");
-    }
-  };
-
-  // Contact ordering functions
-  const moveContactUp = async (id) => {
-    const contactIndex = contacts.findIndex((c) => c._id === id);
-    if (contactIndex <= 0) return; // Already at top or not found
-
-    const currentContact = contacts[contactIndex];
-    const previousContact = contacts[contactIndex - 1];
-
-    try {
-      // Optimistically update UI by swapping orders
-      const optimisticContacts = [...contacts];
-      optimisticContacts[contactIndex] = {
-        ...currentContact,
-        order: previousContact.order,
-      };
-      optimisticContacts[contactIndex - 1] = {
-        ...previousContact,
-        order: currentContact.order,
-      };
-      optimisticContacts.sort((a, b) => a.order - b.order);
-      setContacts(optimisticContacts);
-
-      // Update both contacts on server
-      await Promise.all([
-        fetch(`/api/contacts/${currentContact._id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            ...currentContact,
-            order: previousContact.order,
-          }),
-        }),
-        fetch(`/api/contacts/${previousContact._id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            ...previousContact,
-            order: currentContact.order,
-          }),
-        }),
-      ]);
-
-      toast.success("Contact moved up");
-    } catch (error) {
-      // Revert on error
-      setContacts(contacts);
-      toast.error("Failed to reorder contact");
-    }
-  };
-
-  const moveContactDown = async (id) => {
-    const contactIndex = contacts.findIndex((c) => c._id === id);
-    if (contactIndex >= contacts.length - 1 || contactIndex === -1) return; // Already at bottom or not found
-
-    const currentContact = contacts[contactIndex];
-    const nextContact = contacts[contactIndex + 1];
-
-    try {
-      // Optimistically update UI by swapping orders
-      const optimisticContacts = [...contacts];
-      optimisticContacts[contactIndex] = {
-        ...currentContact,
-        order: nextContact.order,
-      };
-      optimisticContacts[contactIndex + 1] = {
-        ...nextContact,
-        order: currentContact.order,
-      };
-      optimisticContacts.sort((a, b) => a.order - b.order);
-      setContacts(optimisticContacts);
-
-      // Update both contacts on server
-      await Promise.all([
-        fetch(`/api/contacts/${currentContact._id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ ...currentContact, order: nextContact.order }),
-        }),
-        fetch(`/api/contacts/${nextContact._id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ ...nextContact, order: currentContact.order }),
-        }),
-      ]);
-
-      toast.success("Contact moved down");
-    } catch (error) {
-      // Revert on error
-      setContacts(contacts);
-      toast.error("Failed to reorder contact");
     }
   };
 
@@ -1081,26 +1045,6 @@ const AdminPanel = () => {
                               <FaEdit className="mr-1" size={12} />
                               Edit
                             </button>
-                            <div className="flex items-center gap-2">
-                              <button
-                                title="Mark as Male"
-                                onClick={() =>
-                                  updateTherapistGender(therapist._id, "male")
-                                }
-                                className="px-3 py-1 bg-blue-50 text-blue-800 border border-blue-100 rounded-md text-sm hover:bg-blue-100"
-                              >
-                                Male
-                              </button>
-                              <button
-                                title="Mark as Female"
-                                onClick={() =>
-                                  updateTherapistGender(therapist._id, "female")
-                                }
-                                className="px-3 py-1 bg-pink-50 text-pink-800 border border-pink-100 rounded-md text-sm hover:bg-pink-100"
-                              >
-                                Female
-                              </button>
-                            </div>
                             <button
                               onClick={() =>
                                 toggleTherapistStatus(therapist._id)
@@ -1274,16 +1218,6 @@ const AdminPanel = () => {
               <h2 className="text-2xl font-bold text-gray-900">
                 Contact Management
               </h2>
-              <button
-                onClick={() => {
-                  setEditingContact(null);
-                  setShowContactForm(true);
-                }}
-                className="bg-brown-600 text-white px-4 py-2 rounded-md hover:bg-brown-700 flex items-center"
-              >
-                <FaPlus className="mr-2" />
-                Add New Contact
-              </button>
             </div>
 
             <div className="bg-white shadow rounded-lg overflow-hidden">
@@ -1292,8 +1226,8 @@ const AdminPanel = () => {
                   Contact Information ({contacts.length} items)
                 </h3>
                 <p className="text-sm text-gray-500 mt-1">
-                  Drag contacts up/down to reorder them. Lower numbers appear
-                  first.
+                  Edit your contact information. These are the main ways
+                  customers can reach you.
                 </p>
               </div>
 
@@ -1306,36 +1240,6 @@ const AdminPanel = () => {
                       className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
                     >
                       <div className="flex items-center space-x-4">
-                        <div className="flex flex-col items-center space-y-1">
-                          <button
-                            onClick={() => moveContactUp(contact._id)}
-                            disabled={index === 0}
-                            className={`p-1 rounded ${
-                              index === 0
-                                ? "text-gray-300 cursor-not-allowed"
-                                : "text-gray-500 hover:text-blue-600 hover:bg-blue-50"
-                            } transition-colors`}
-                            title="Move up"
-                          >
-                            <FaArrowUp size={12} />
-                          </button>
-                          <span className="text-xs text-gray-400 font-mono">
-                            {contact.order}
-                          </span>
-                          <button
-                            onClick={() => moveContactDown(contact._id)}
-                            disabled={index === contacts.length - 1}
-                            className={`p-1 rounded ${
-                              index === contacts.length - 1
-                                ? "text-gray-300 cursor-not-allowed"
-                                : "text-gray-500 hover:text-blue-600 hover:bg-blue-50"
-                            } transition-colors`}
-                            title="Move down"
-                          >
-                            <FaArrowDown size={12} />
-                          </button>
-                        </div>
-
                         <div
                           className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
                             contact.type === "phone"
@@ -1353,7 +1257,20 @@ const AdminPanel = () => {
                               : "bg-gray-100 text-gray-600"
                           }`}
                         >
-                          <FaPhone size={16} />
+                          {contact.type === "phone" && <FaPhone size={16} />}
+                          {contact.type === "whatsapp" && <FaPhone size={16} />}
+                          {contact.type === "viber" && <FaPhone size={16} />}
+                          {contact.type === "wechat" && <FaPhone size={16} />}
+                          {contact.type === "telegram" && <FaPhone size={16} />}
+                          {contact.type === "email" && <FaEnvelope size={16} />}
+                          {![
+                            "phone",
+                            "whatsapp",
+                            "viber",
+                            "wechat",
+                            "telegram",
+                            "email",
+                          ].includes(contact.type) && <FaPhone size={16} />}
                         </div>
 
                         <div className="flex-1 min-w-0">
@@ -1411,13 +1328,6 @@ const AdminPanel = () => {
                             <FaEye size={14} />
                           )}
                         </button>
-                        <button
-                          onClick={() => deleteContact(contact._id)}
-                          className="text-red-600 hover:text-red-700 p-2 hover:bg-red-50 rounded transition-colors"
-                          title="Delete Contact"
-                        >
-                          <FaTrash size={14} />
-                        </button>
                       </div>
                     </div>
                   ))}
@@ -1427,21 +1337,12 @@ const AdminPanel = () => {
                   <div className="px-6 py-12 text-center">
                     <FaPhone className="mx-auto text-gray-400 mb-4" size={48} />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      No contacts yet
+                      No contact information loaded
                     </h3>
                     <p className="text-gray-500 mb-4">
-                      Add your first contact information to help customers reach
-                      you.
+                      Contact information will appear here once loaded from the
+                      database.
                     </p>
-                    <button
-                      onClick={() => {
-                        setEditingContact(null);
-                        setShowContactForm(true);
-                      }}
-                      className="bg-brown-600 text-white px-4 py-2 rounded-md hover:bg-brown-700"
-                    >
-                      Add First Contact
-                    </button>
                   </div>
                 )}
               </div>
@@ -1482,6 +1383,17 @@ const AdminPanel = () => {
           }}
         />
       )}
+
+      {/* Custom Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={hideConfirmation}
+        type={confirmModal.type}
+      />
     </div>
   );
 };

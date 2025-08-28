@@ -104,6 +104,21 @@ export const useContacts = (options = { autoFetch: true }) => {
     if (autoFetch) {
       fetchContacts().catch(() => {});
     }
+
+    // Listen for contact updates from admin dashboard
+    const handleContactsUpdated = () => {
+      // Clear pending promise and refetch
+      pendingPromise = null;
+      fetchContacts().catch(() => {});
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("contactsUpdated", handleContactsUpdated);
+
+      return () => {
+        window.removeEventListener("contactsUpdated", handleContactsUpdated);
+      };
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

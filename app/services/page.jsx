@@ -147,8 +147,19 @@ const Services = () => {
             transform: translateY(0);
           }
         }
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
         .animate-fade-in-up {
           animation: fade-in-up 0.6s ease-out;
+        }
+        .animate-fade-in {
+          animation: fade-in 0.5s ease-out;
         }
       `}</style>
       <section className="flex flex-col items-center justify-center min-h-screen bg-[#f3e7d1] p-8">
@@ -174,36 +185,55 @@ const Services = () => {
           </div>
         </div>
 
-        <div
-          className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto transition-opacity duration-500 ${
-            isLoadingData ? "opacity-0" : "opacity-100"
-          }`}
-        >
+        <div className="max-w-7xl mx-auto">
           {isLoadingData ? (
-            <div className="col-span-full flex flex-col items-center justify-center py-20">
-              <div className="relative">
-                {/* Modern spinner */}
-                <div className="w-12 h-12 border-4 border-brown-200 border-t-brown-600 rounded-full animate-spin"></div>
+            <div className="flex flex-col items-center justify-center py-20 min-h-[400px]">
+              <div className="relative mb-6">
+                {/* Elegant spinning loader */}
+                <div className="w-16 h-16 border-4 border-brown-200 border-t-brown-600 rounded-full animate-spin"></div>
+                {/* Inner dot */}
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-brown-600 rounded-full animate-pulse"></div>
               </div>
-              <p className="text-brown-600 text-lg font-medium mt-4">
-                Loading services...
+              <h3 className="text-xl font-semibold text-brown-700 mb-2">
+                Loading Our Premium Services
+              </h3>
+              <p className="text-gray-600 text-center max-w-md">
+                Please wait while we prepare our exclusive massage and spa
+                services for you...
               </p>
+              {/* Animated dots */}
+              <div className="flex space-x-1 mt-4">
+                <div
+                  className="w-2 h-2 bg-brown-400 rounded-full animate-bounce"
+                  style={{ animationDelay: "0ms" }}
+                ></div>
+                <div
+                  className="w-2 h-2 bg-brown-400 rounded-full animate-bounce"
+                  style={{ animationDelay: "150ms" }}
+                ></div>
+                <div
+                  className="w-2 h-2 bg-brown-400 rounded-full animate-bounce"
+                  style={{ animationDelay: "300ms" }}
+                ></div>
+              </div>
             </div>
           ) : services.length > 0 ? (
-            services.map((service, index) => (
-              <div
-                key={service._id || index}
-                className="animate-fade-in-up opacity-0"
-                style={{
-                  animationDelay: `${index * 100}ms`,
-                  animationFillMode: "forwards",
-                }}
-              >
-                <ServiceCard service={service} index={index} />
-              </div>
-            ))
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 animate-fade-in">
+              {services.map((service, index) => (
+                <div
+                  key={service._id || index}
+                  className="animate-fade-in-up opacity-0"
+                  style={{
+                    animationDelay: `${index * 100}ms`,
+                    animationFillMode: "forwards",
+                  }}
+                >
+                  <ServiceCard service={service} index={index} />
+                </div>
+              ))}
+            </div>
           ) : (
-            <div className="col-span-full text-center py-20">
+            <div className="text-center py-20">
               <p className="text-gray-600 text-lg">No services found.</p>
               <button
                 onClick={loadServices}

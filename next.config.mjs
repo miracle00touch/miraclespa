@@ -15,6 +15,7 @@ const nextConfig = {
         hostname: "res.cloudinary.com",
       },
     ],
+    qualities: [75, 80, 90, 95, 100],
   },
 
   // Headers for better caching

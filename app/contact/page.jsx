@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
+import { useContacts } from "../../hooks/useContacts";
 
 // Note: metadata should be in a separate file for client components
 // or moved to a parent server component
@@ -20,15 +21,30 @@ import {
 import { SiWechat, SiLine } from "react-icons/si";
 
 const Contact = () => {
+  // Get all contacts and filter for active only
+  const { contacts } = useContacts({ autoFetch: true });
+  const activeContacts = contacts.filter((c) => c.isActive);
   const [selectedService, setSelectedService] = useState("Nuru Massage");
 
-  // Hardcoded contact info for better performance - no API calls needed
-  const phoneNumber = "+639274736260";
-  const emailAddress = "miracletouchspa2@gmail.com";
-  const whatsappNumber = phoneNumber;
-  const viberNumber = phoneNumber;
-  const telegramContact = "MNGN12";
-  const wechatContact = "09274736260";
+  // Use dynamic contact fetching with fallbacks for better user experience
+  const {
+    getPrimaryPhone,
+    getPrimaryEmail,
+    getWhatsAppNumber,
+    getViberNumber,
+    getTelegramContact,
+    getWeChatContact,
+    loading,
+    error,
+  } = useContacts({ autoFetch: true });
+
+  // Get contact info with fallbacks - show fallbacks immediately, then update with real data
+  const phoneNumber = getPrimaryPhone() || "+639274736260";
+  const emailAddress = getPrimaryEmail() || "info@miracletouchspa.com";
+  const whatsappNumber = getWhatsAppNumber() || phoneNumber;
+  const viberNumber = getViberNumber() || phoneNumber;
+  const telegramContact = getTelegramContact() || "MNGN12";
+  const wechatContact = getWeChatContact() || "09274736260";
 
   const services = [
     "Nuru Massage",
@@ -71,6 +87,14 @@ const Contact = () => {
 
   return (
     <div className="relative min-h-screen bg-gradient-to-br from-[#f8f4e8] via-[#f3e7d1] to-[#ede1d1]">
+      {/* Contact Data Loading Indicator */}
+      {loading && (
+        <div className="fixed top-4 right-4 z-50 bg-white shadow-lg rounded-lg px-3 py-2 flex items-center text-sm text-gray-600">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-brown-600 mr-2"></div>
+          Updating contact info...
+        </div>
+      )}
+
       {/* Hero Section with Urgent CTA */}
       <div className="relative bg-gradient-to-r from-brown-800 to-brown-600 text-white py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
@@ -144,27 +168,31 @@ const Contact = () => {
           {/* Primary Booking Buttons */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
             {/* WhatsApp - Primary CTA */}
-            <a
-              href={quickBookingMessage("whatsapp")}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-8 py-4 rounded-xl text-lg font-bold transition-all duration-300 transform hover:scale-105 hover:shadow-xl flex items-center justify-center"
-            >
-              <FaWhatsapp className="text-2xl mr-3" />
-              Book via WhatsApp
-              <span className="ml-2 text-sm bg-white bg-opacity-20 px-2 py-1 rounded">
-                Fastest Response
-              </span>
-            </a>
+            {getWhatsAppNumber() && (
+              <a
+                href={quickBookingMessage("whatsapp")}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-8 py-4 rounded-xl text-lg font-bold transition-all duration-300 transform hover:scale-105 hover:shadow-xl flex items-center justify-center"
+              >
+                <FaWhatsapp className="text-2xl mr-3" />
+                Book via WhatsApp
+                <span className="ml-2 text-sm bg-white bg-opacity-20 px-2 py-1 rounded">
+                  Fastest Response
+                </span>
+              </a>
+            )}
 
             {/* Call - Secondary CTA */}
-            <a
-              href={`tel:${phoneNumber.replace(/\s/g, "")}`}
-              className="group bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-8 py-4 rounded-xl text-lg font-bold transition-all duration-300 transform hover:scale-105 hover:shadow-xl flex items-center justify-center"
-            >
-              <FaPhoneAlt className="text-2xl mr-3" />
-              Call Now: {phoneNumber}
-            </a>
+            {getPrimaryPhone() && (
+              <a
+                href={`tel:${phoneNumber.replace(/\s/g, "")}`}
+                className="group bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-8 py-4 rounded-xl text-lg font-bold transition-all duration-300 transform hover:scale-105 hover:shadow-xl flex items-center justify-center"
+              >
+                <FaPhoneAlt className="text-2xl mr-3" />
+                Call Now: {phoneNumber}
+              </a>
+            )}
           </div>
 
           {/* Alternative Contact Methods */}
@@ -174,47 +202,57 @@ const Contact = () => {
             </p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {/* Viber */}
-              <a
-                href={quickBookingMessage("viber")}
-                className="group bg-white hover:bg-purple-50 border-2 border-purple-200 hover:border-purple-400 p-4 rounded-lg transition-all duration-300 text-center"
-              >
-                <FaViber className="text-purple-600 text-3xl mx-auto mb-2 group-hover:scale-110 transition-transform" />
-                <span className="text-sm font-medium text-purple-700">
-                  Viber
-                </span>
-              </a>
+              {getViberNumber() && (
+                <a
+                  href={quickBookingMessage("viber")}
+                  className="group bg-white hover:bg-purple-50 border-2 border-purple-200 hover:border-purple-400 p-4 rounded-lg transition-all duration-300 text-center"
+                >
+                  <FaViber className="text-purple-600 text-3xl mx-auto mb-2 group-hover:scale-110 transition-transform" />
+                  <span className="text-sm font-medium text-purple-700">
+                    Viber
+                  </span>
+                </a>
+              )}
 
               {/* Telegram */}
-              <a
-                href={quickBookingMessage("telegram")}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group bg-white hover:bg-blue-50 border-2 border-blue-200 hover:border-blue-400 p-4 rounded-lg transition-all duration-300 text-center"
-              >
-                <FaTelegramPlane className="text-blue-500 text-3xl mx-auto mb-2 group-hover:scale-110 transition-transform" />
-                <span className="text-sm font-medium text-blue-700">
-                  Telegram
-                </span>
-              </a>
+              {getTelegramContact() && (
+                <a
+                  href={quickBookingMessage("telegram")}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group bg-white hover:bg-blue-50 border-2 border-blue-200 hover:border-blue-400 p-4 rounded-lg transition-all duration-300 text-center"
+                >
+                  <FaTelegramPlane className="text-blue-500 text-3xl mx-auto mb-2 group-hover:scale-110 transition-transform" />
+                  <span className="text-sm font-medium text-blue-700">
+                    Telegram
+                  </span>
+                </a>
+              )}
 
               {/* Line */}
-              <a
-                href={quickBookingMessage("line")}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group bg-white hover:bg-green-50 border-2 border-green-200 hover:border-green-400 p-4 rounded-lg transition-all duration-300 text-center"
-              >
-                <SiLine className="text-green-500 text-3xl mx-auto mb-2 group-hover:scale-110 transition-transform" />
-                <span className="text-sm font-medium text-green-700">Line</span>
-              </a>
+              {getWeChatContact() && (
+                <a
+                  href={quickBookingMessage("line")}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group bg-white hover:bg-green-50 border-2 border-green-200 hover:border-green-400 p-4 rounded-lg transition-all duration-300 text-center"
+                >
+                  <SiLine className="text-green-500 text-3xl mx-auto mb-2 group-hover:scale-110 transition-transform" />
+                  <span className="text-sm font-medium text-green-700">
+                    Line
+                  </span>
+                </a>
+              )}
 
               {/* WeChat */}
-              <div className="group bg-white hover:bg-green-50 border-2 border-green-200 hover:border-green-400 p-4 rounded-lg transition-all duration-300 text-center cursor-pointer">
-                <SiWechat className="text-green-400 text-3xl mx-auto mb-2 group-hover:scale-110 transition-transform" />
-                <span className="text-sm font-medium text-green-700">
-                  WeChat
-                </span>
-              </div>
+              {getWeChatContact() && (
+                <div className="group bg-white hover:bg-green-50 border-2 border-green-200 hover:border-green-400 p-4 rounded-lg transition-all duration-300 text-center cursor-pointer">
+                  <SiWechat className="text-green-400 text-3xl mx-auto mb-2 group-hover:scale-110 transition-transform" />
+                  <span className="text-sm font-medium text-green-700">
+                    WeChat
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -342,13 +380,15 @@ const Contact = () => {
               <FaFacebook className="text-xl mr-2" />
               Follow Us on Facebook
             </a>
-            <a
-              href={`mailto:${emailAddress}`}
-              className="flex items-center bg-brown-600 hover:bg-brown-700 px-6 py-3 rounded-lg transition-colors"
-            >
-              <FaEnvelope className="text-xl mr-2" />
-              {emailAddress}
-            </a>
+            {getPrimaryEmail() && (
+              <a
+                href={`mailto:${emailAddress}`}
+                className="flex items-center bg-brown-600 hover:bg-brown-700 px-6 py-3 rounded-lg transition-colors"
+              >
+                <FaEnvelope className="text-xl mr-2" />
+                {emailAddress}
+              </a>
+            )}
           </div>
           <p className="text-brown-200">
             Operating Hours: 9:00 AM - 10:00 PM Daily | Serving All Metro Manila

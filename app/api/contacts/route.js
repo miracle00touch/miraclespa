@@ -7,9 +7,13 @@ import { invalidateContactsCache } from "@/lib/cache";
 // For contacts we do NOT keep per-instance caching — always return fresh data
 const CACHE_CONTROL_HEADER = "no-store";
 
-// GET - Fetch all contacts (public - for displaying contact info)
-export async function GET() {
+// GET - Fetch all contacts (public - for displaying contact info, admin - for management)
+export async function GET(request) {
   try {
+    // Check if this is an admin request
+    const { searchParams } = new URL(request.url);
+    const isAdmin = searchParams.get("admin") === "true";
+
     // Add small random delay to stagger simultaneous requests
     const delay = Math.random() * 800; // 0-0.8 second
     await new Promise((resolve) => setTimeout(resolve, delay));
@@ -21,7 +25,10 @@ export async function GET() {
 
     const dbOperation = async () => {
       await connectDB();
-      const contacts = await Contact.find({ isActive: true }).sort({
+
+      // For admin, return all contacts; for public, only active ones
+      const filter = isAdmin ? {} : { isActive: true };
+      const contacts = await Contact.find(filter).sort({
         order: 1,
       });
       return contacts;

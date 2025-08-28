@@ -11,6 +11,7 @@ const ContactForm = ({ contact, onSave, onCancel }) => {
       order: 0,
     }
   );
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const contactTypes = [
     { value: "phone", label: "Phone" },
@@ -26,9 +27,29 @@ const ContactForm = ({ contact, onSave, onCancel }) => {
     setFormData({ ...formData, [field]: value });
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave(formData);
+  const handleSubmit = () => {
+    if (isSubmitting) return; // Prevent double submission
+
+    console.log("🟢 ContactForm: Starting save...");
+    console.log("🟢 Button click handler called");
+
+    setIsSubmitting(true);
+
+    // Don't use await here - let the promise resolve independently
+    onSave(formData)
+      .then((result) => {
+        console.log("🟢 ContactForm: Save completed successfully", result);
+        // Don't automatically close form - let user see success and close manually
+        console.log("🟢 ContactForm: Save successful - form stays open");
+      })
+      .catch((error) => {
+        console.error("🔴 ContactForm: Error saving contact:", error);
+        // Don't close form on error - let user retry
+      })
+      .finally(() => {
+        console.log("🟢 ContactForm: Finalizing...");
+        setIsSubmitting(false);
+      });
   };
 
   const getPlaceholderText = (type) => {
@@ -68,42 +89,29 @@ const ContactForm = ({ contact, onSave, onCancel }) => {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Contact Type */}
+        <form className="space-y-4">
+          {/* Contact Type - Read Only */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Contact Type *
+              Contact Type
             </label>
-            <select
-              value={formData.type}
-              onChange={(e) => handleInputChange("type", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brown-500"
-              required
-            >
-              {contactTypes.map((type) => (
-                <option key={type.value} value={type.value}>
-                  {type.label}
-                </option>
-              ))}
-            </select>
+            <div className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-gray-600">
+              {contactTypes.find((t) => t.value === formData.type)?.label ||
+                formData.type}
+            </div>
           </div>
 
-          {/* Label */}
+          {/* Label - Read Only */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Label *
+              Label
             </label>
-            <input
-              type="text"
-              value={formData.label}
-              onChange={(e) => handleInputChange("label", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brown-500"
-              required
-              placeholder="e.g., Main Office, 24/7 Support"
-            />
+            <div className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-gray-600">
+              {formData.label}
+            </div>
           </div>
 
-          {/* Value */}
+          {/* Value - Editable */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Contact Value *
@@ -118,24 +126,7 @@ const ContactForm = ({ contact, onSave, onCancel }) => {
             />
           </div>
 
-          {/* Order */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Display Order
-            </label>
-            <input
-              type="number"
-              value={formData.order}
-              onChange={(e) =>
-                handleInputChange("order", parseInt(e.target.value) || 0)
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brown-500"
-              min="0"
-              placeholder="0 = first, higher numbers appear later"
-            />
-          </div>
-
-          {/* Active Status */}
+          {/* Active Status - Editable */}
           <div>
             <label className="flex items-center">
               <input
@@ -163,11 +154,24 @@ const ContactForm = ({ contact, onSave, onCancel }) => {
               Cancel
             </button>
             <button
-              type="submit"
-              className="px-4 py-2 bg-brown-600 text-white rounded-md hover:bg-brown-700 flex items-center"
+              type="button"
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className={`px-4 py-2 bg-brown-600 text-white rounded-md hover:bg-brown-700 flex items-center transition-colors ${
+                isSubmitting ? "opacity-75 cursor-not-allowed" : ""
+              }`}
             >
-              <FaSave className="mr-2" />
-              Save Contact
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <FaSave className="mr-2" />
+                  Save Contact
+                </>
+              )}
             </button>
           </div>
         </form>
